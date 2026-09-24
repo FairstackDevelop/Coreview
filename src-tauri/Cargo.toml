@@ -26,6 +26,8 @@ sysinfo = "0.39.6"
 tauri-plugin-dialog = "2.7.3"
 tauri-plugin-notification = "2.4.0"
 window-vibrancy = "0.8.1"
+wgpu = { version = "30.0.1", default-features = false, features = ["std", "parking_lot", "dx12", "metal", "vulkan", "wgsl"] }
+pollster = "1.0.1"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
@@ -37,4 +39,6 @@ panic = "abort"
 strip = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10.1"
+core-foundation-sys = "0.8.7"
 libc = "0.2"

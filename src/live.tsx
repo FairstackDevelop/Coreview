@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
-import { api, type LiveStats, type PowerStats } from "./api";
+import { api, type LiveStats, type PowerStats, type SmcSensors } from "./api";
 import { useSettings } from "./settings";
 
 export interface Point {
@@ -14,6 +14,7 @@ export interface Point {
   temp: number;
   freq: number;
   power: number | null;
+  gpu: number | null;
 }
 
 export interface SensorStat {
@@ -29,6 +30,8 @@ interface LiveCtx {
   latest: LiveStats | null;
   history: Point[];
   power: PowerStats | null;
+  smc: SmcSensors | null;
+  fanHist: Record<number, number[]>;
   sensors: Record<string, SensorStat>;
   resetSensors: () => void;
   paused: boolean;
@@ -39,11 +42,29 @@ interface LiveCtx {
 const Ctx = createContext<LiveCtx>(null!);
 export const useLive = () => useContext(Ctx);
 
+function mergeStats(prev: Record<string, SensorStat>, entries: [string, number][]) {
+  const next = { ...prev };
+  for (const [label, value] of entries) {
+    const o = prev[label];
+    next[label] = {
+      now: value,
+      min: o ? Math.min(o.min, value) : value,
+      max: o ? Math.max(o.max, value) : value,
+      sum: (o?.sum ?? 0) + value,
+      n: (o?.n ?? 0) + 1,
+      hist: [...(o?.hist ?? []), value].slice(-90),
+    };
+  }
+  return next;
+}
+
 export function LiveProvider({ children }: { children: ReactNode }) {
   const { settings, t } = useSettings();
   const [latest, setLatest] = useState<LiveStats | null>(null);
   const [history, setHistory] = useState<Point[]>([]);
   const [power, setPower] = useState<PowerStats | null>(null);
+  const [smc, setSmc] = useState<SmcSensors | null>(null);
+  const [fanHist, setFanHist] = useState<Record<number, number[]>>({});
   const [sensors, setSensors] = useState<Record<string, SensorStat>>({});
   const [paused, setPaused] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -66,6 +87,17 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         setPower(p);
         next = p?.pollMs ?? 5000;
       } catch {}
+      try {
+        const s = await api.smc();
+        if (!alive) return;
+        setSmc(s);
+        setSensors((prev) => mergeStats(prev, s.temps.map((x) => [`smc:${x.key}`, x.celsius])));
+        setFanHist((prev) => {
+          const next = { ...prev };
+          for (const f of s.fans) next[f.id] = [...(next[f.id] ?? []), f.rpm].slice(-90);
+          return next;
+        });
+      } catch {}
       if (alive) timer = window.setTimeout(loop, next);
     };
     loop();
@@ -84,21 +116,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         if (!alive) return;
         const hottest = s.temps.reduce((m, x) => (x.celsius > m.celsius ? x : m), { label: "", celsius: 0 } as { label: string; celsius: number });
         setLatest(s);
-        setSensors((prev) => {
-          const next = { ...prev };
-          for (const x of s.temps) {
-            const o = prev[x.label];
-            next[x.label] = {
-              now: x.celsius,
-              min: o ? Math.min(o.min, x.celsius) : x.celsius,
-              max: o ? Math.max(o.max, x.celsius) : x.celsius,
-              sum: (o?.sum ?? 0) + x.celsius,
-              n: (o?.n ?? 0) + 1,
-              hist: [...(o?.hist ?? []), x.celsius].slice(-90),
-            };
-          }
-          return next;
-        });
+        setSensors((prev) => mergeStats(prev, s.temps.map((x) => [x.label, x.celsius])));
         setHistory((h) =>
           [
             ...h,
@@ -113,6 +131,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
               temp: hottest.celsius,
               freq: s.cpuMhz,
               power: powerRef.current?.watts ?? null,
+              gpu: powerRef.current?.gpuLoad ?? null,
             },
           ].slice(-cfg.current.settings.history),
         );
@@ -138,5 +157,5 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     };
   }, [paused, settings.interval]);
 
-  return <Ctx.Provider value={{ latest, history, power, sensors, resetSensors, paused, setPaused, toast }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ latest, history, power, smc, fanHist, sensors, resetSensors, paused, setPaused, toast }}>{children}</Ctx.Provider>;
 }

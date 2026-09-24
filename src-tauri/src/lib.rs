@@ -1,8 +1,11 @@
 mod details;
 mod extras;
 mod hw;
+#[cfg(target_os = "macos")]
+mod ioreport;
 mod live;
 mod power;
+mod smc;
 mod startup;
 mod stress;
 mod util;
@@ -25,6 +28,7 @@ pub fn run() {
             startup::startup_remove,
             startup::startup_add,
             power::power_stats,
+            smc::smc_sensors,
             stress::stress_start,
             stress::stress_stop,
             stress::stress_status,

@@ -1,32 +1,60 @@
 import { useMemo, useState } from "react";
-import { useLive } from "../live";
+import { useLive, type SensorStat } from "../live";
 import { duration, pct } from "../format";
 import type { Key } from "../i18n";
-import { describe, groupOf, groupOrder, tone } from "../sensors";
+import { describe, describeSmc, groupOf, groupOrder, smcGroup, tone, type Group } from "../sensors";
 import { useSettings } from "../settings";
 import { Bar, Card, Chart, Icon, PageHead, Spark } from "../ui";
 
-const watts = (v: number | null | undefined, locale: string) =>
-  v === null || v === undefined ? "—" : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(v)} W`;
+interface Row {
+  key: string;
+  raw: string;
+  name: string;
+  group: Group;
+  stat: SensorStat;
+}
 
 export default function Sensors() {
   const { t, locale } = useSettings();
-  const { history, power, sensors, resetSensors } = useLive();
+  const { history, power, smc, fanHist, sensors, resetSensors } = useLive();
   const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
+
+  const num = (v: number | null | undefined, unit: string, digits = 1) =>
+    v === null || v === undefined ? "—" : `${new Intl.NumberFormat(locale, { maximumFractionDigits: digits }).format(v)} ${unit}`;
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const all: Row[] = Object.entries(sensors).map(([key, stat]) => {
+      if (key.startsWith("smc:")) {
+        const id = key.slice(4);
+        const m = smc?.temps.find((x) => x.key === id);
+        return { key, raw: `SMC ${id}`, name: m ? describeSmc(m, t) : id, group: m ? smcGroup(m.group) : "other", stat };
+      }
+      return { key, raw: key, name: describe(key, t), group: groupOf(key), stat };
+    });
     return groupOrder
       .map((g) => ({
         g,
-        items: Object.entries(sensors)
-          .filter(([label]) => groupOf(label) === g && (!q || `${label} ${describe(label, t)}`.toLowerCase().includes(q)))
-          .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })),
+        items: all
+          .filter((r) => r.group === g && (!q || `${r.raw} ${r.name}`.toLowerCase().includes(q)))
+          .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }) || a.raw.localeCompare(b.raw)),
       }))
-      .filter((x) => x.items.length > 0);
-  }, [sensors, query, t]);
+      .filter((x) => x.items.length > 0 && (x.g !== "other" || showAll || q));
+  }, [sensors, smc, query, showAll, t]);
+
+  const hiddenOther = useMemo(() => Object.keys(sensors).filter((k) => groupOf(k) === "other" || (k.startsWith("smc:") && smcGroup(smc?.temps.find((x) => x.key === k.slice(4))?.group ?? "other") === "other")).length, [sensors, smc]);
 
   const deg = (v: number) => `${v.toFixed(1)}°`;
+  const parts = power
+    ? ([
+        ["pw.cpu", power.cpuWatts],
+        ["pw.gpu", power.gpuWatts],
+        ["pw.ane", power.aneWatts],
+        ["pw.dram", power.dramWatts],
+      ] as [Key, number | null][]).filter((x): x is [Key, number] => x[1] !== null)
+    : [];
+  const partMax = Math.max(0.1, ...parts.map((x) => x[1]));
   const battW = power?.batteryWatts ?? null;
 
   return (
@@ -48,9 +76,28 @@ export default function Sensors() {
         </Card>
       ) : (
         <div className="grid">
-          <Card title={t("pow.system")} right={<b className="accent">{watts(power.watts, locale)}</b>}>
-            <Chart data={history} series={[{ key: "power", color: "var(--c4)", name: t("pow.system") }]} format={(v) => watts(v, locale)} height={120} />
+          <Card title={t("pow.system")} right={<b className="accent">{num(power.watts, "W")}</b>}>
+            <Chart data={history} series={[{ key: "power", color: "var(--c4)", name: t("pow.system") }]} format={(v) => num(v, "W")} height={120} />
           </Card>
+
+          {parts.length > 0 && (
+            <Card title={t("pow.title")}>
+              {parts.map(([k, w]) => (
+                <div key={k} className="meter">
+                  <span>{t(k)}</span>
+                  <Bar value={(w / partMax) * 100} />
+                  <b>{num(w, "W", 2)}</b>
+                </div>
+              ))}
+            </Card>
+          )}
+
+          {power.gpuLoad !== null && (
+            <Card title={t("mon.gpu")} right={<b className="accent">{pct(power.gpuLoad, locale)}</b>}>
+              <Chart data={history} max={100} series={[{ key: "gpu", color: "var(--c2)", name: t("mon.gpu") }]} format={(v) => pct(v, locale)} height={100} />
+            </Card>
+          )}
+
           <Card title={t("pow.battery")} right={power.percent !== null ? <b className="accent">{pct(power.percent, locale)}</b> : undefined}>
             {power.percent !== null && <Bar value={power.percent} tone={power.percent < 20 ? "danger" : undefined} />}
             <div className="row">
@@ -58,9 +105,21 @@ export default function Sensors() {
               <b>{power.charging ? t("pow.charging") : power.onAc ? t("sum.plugged") : t("pow.discharging")}</b>
             </div>
             <div className="row">
-              <span>{t("pow.system")}</span>
-              <b>{battW === null ? "—" : `${battW > 0 ? "+" : "−"}${watts(Math.abs(battW), locale)}`}</b>
+              <span>{t("pow.title")}</span>
+              <b>{battW === null ? "—" : `${battW > 0 ? "+" : "−"}${num(Math.abs(battW), "W")}`}</b>
             </div>
+            {power.batteryVolts !== null && (
+              <div className="row">
+                <span>{t("pow.voltage")}</span>
+                <b>{num(power.batteryVolts, "V", 2)}</b>
+              </div>
+            )}
+            {power.batteryAmps !== null && (
+              <div className="row">
+                <span>{t("pow.current")}</span>
+                <b>{num(power.batteryAmps, "A", 2)}</b>
+              </div>
+            )}
             {power.minutesRemaining !== null && !power.charging && (
               <div className="row">
                 <span>{t("pow.remaining")}</span>
@@ -68,11 +127,43 @@ export default function Sensors() {
               </div>
             )}
           </Card>
+
           <Card title={t("pow.adapter")}>
-            <div className="hero">{power.onAc ? watts(power.adapterWatts, locale) : "—"}</div>
-            {power.adapterRated && <div className="row"><span>{t("pow.rated", { w: power.adapterRated })}</span><b /></div>}
+            <div className="hero">{power.onAc ? num(power.adapterWatts, "W") : "—"}</div>
+            {power.adapterRated ? (
+              <div className="row">
+                <span>{t("pow.rated", { w: power.adapterRated })}</span>
+                <b />
+              </div>
+            ) : null}
           </Card>
         </div>
+      )}
+
+      <h2 className="section">{t("fan.title")}</h2>
+      {smc && smc.fans.length > 0 ? (
+        <div className="grid">
+          {smc.fans.map((f) => (
+            <Card key={f.id} title={t("fan.name", { n: f.id + 1 })} right={<b className="accent">{Math.round(f.rpm)} RPM</b>}>
+              {f.max > 0 && <Bar value={(f.rpm / f.max) * 100} />}
+              <Spark data={fanHist[f.id] ?? []} color="var(--c3)" />
+              {f.max > 0 && (
+                <div className="row">
+                  <span>
+                    {t("sn.min")} / {t("sn.max")}
+                  </span>
+                  <b>
+                    {Math.round(f.min)} / {Math.round(f.max)} RPM
+                  </b>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <p className="muted">{t("fan.none")}</p>
+        </Card>
       )}
 
       <h2 className="section">{t("mon.temps")}</h2>
@@ -104,23 +195,23 @@ export default function Sensors() {
                       {t(`tg.${g}` as Key)} · {items.length}
                     </td>
                   </tr>
-                  {items.map(([label, s]) => (
-                    <tr key={label}>
+                  {items.map((r) => (
+                    <tr key={r.key}>
                       <td>
-                        {describe(label, t)}
-                        {describe(label, t) !== label && <small className="raw">{label}</small>}
+                        {r.name}
+                        {r.name !== r.raw && <small className="raw">{r.raw}</small>}
                       </td>
                       <td>
-                        <b className={`temp-now ${tone(s.now) ?? ""}`}>{deg(s.now)}</b>
+                        <b className={`temp-now ${tone(r.stat.now) ?? ""}`}>{deg(r.stat.now)}</b>
                       </td>
                       <td className="bar-cell">
-                        <Bar value={(s.now / 110) * 100} tone={tone(s.now)} />
+                        <Bar value={(r.stat.now / 110) * 100} tone={tone(r.stat.now)} />
                       </td>
-                      <td>{deg(s.min)}</td>
-                      <td>{deg(s.sum / s.n)}</td>
-                      <td>{deg(s.max)}</td>
+                      <td>{deg(r.stat.min)}</td>
+                      <td>{deg(r.stat.sum / r.stat.n)}</td>
+                      <td>{deg(r.stat.max)}</td>
                       <td>
-                        <Spark data={s.hist} />
+                        <Spark data={r.stat.hist} />
                       </td>
                     </tr>
                   ))}
@@ -128,6 +219,11 @@ export default function Sensors() {
               ))}
             </table>
           </div>
+        )}
+        {hiddenOther > 0 && !query && (
+          <button className="link" onClick={() => setShowAll(!showAll)}>
+            {showAll ? "−" : "+"} {t("mon.showAll")} ({hiddenOther})
+          </button>
         )}
       </Card>
     </>

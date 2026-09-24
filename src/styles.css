@@ -670,3 +670,7 @@ tr.dim td:not(:first-child) { opacity: 0.5; }
 .about h4 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 6px; }
 .about ul, .about ol { padding-left: 18px; display: grid; gap: 4px; font-size: 0.875rem; }
 @media (max-width: 900px) { .about-cols { grid-template-columns: 1fr; } .rings.stats { grid-template-columns: 1fr 1fr; } }
+
+.meter { display: grid; grid-template-columns: 110px 1fr 74px; gap: 12px; align-items: center; padding: 6px 0; font-size: 0.8125rem; }
+.meter span { color: var(--muted); }
+.meter b { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }

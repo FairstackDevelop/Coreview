@@ -18,6 +18,8 @@ struct Inner {
     last_ops: u64,
     last_at: Option<Instant>,
     rate: f64,
+    device: String,
+    error: String,
 }
 
 #[derive(Clone)]
@@ -135,9 +137,99 @@ fn disk_worker(stop: Arc<AtomicBool>, ops: Arc<AtomicU64>, w: Arc<AtomicU64>, r:
     let _ = std::fs::remove_file(&path);
 }
 
+
+const SHADER: &str = r#"
+@group(0) @binding(0) var<storage, read_write> data: array<f32>;
+
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let i = gid.x;
+    var a = data[i] + f32(i) * 0.000001;
+    var b = a * 0.5 + 0.25;
+    var c = a + 0.125;
+    var d = 1.0;
+    for (var k = 0u; k < 4096u; k = k + 1u) {
+        a = fma(a, 0.9990, b * 0.001);
+        b = fma(b, 0.9991, c * 0.001);
+        c = fma(c, 0.9992, d * 0.001);
+        d = fma(d, 0.9993, a * 0.001);
+    }
+    data[i] = a + b + c + d;
+}
+"#;
+
+const GPU_THREADS: u64 = 1 << 20;
+const GPU_FLOPS_PER_DISPATCH: u64 = GPU_THREADS * 4096 * 8;
+
+fn gpu_run(stop: &AtomicBool, ops: &AtomicU64, inner: &Mutex<Inner>) -> Result<(), String> {
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+    let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+        power_preference: wgpu::PowerPreference::HighPerformance,
+        ..Default::default()
+    }))
+    .map_err(|e| e.to_string())?;
+    let info = adapter.get_info();
+    inner.lock().unwrap().device = format!("{} ({:?})", info.name, info.backend);
+    let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default())).map_err(|e| e.to_string())?;
+    let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("stress"),
+        source: wgpu::ShaderSource::Wgsl(SHADER.into()),
+    });
+    let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        label: Some("stress"),
+        layout: None,
+        module: &module,
+        entry_point: Some("main"),
+        compilation_options: Default::default(),
+        cache: None,
+    });
+    let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("data"),
+        size: GPU_THREADS * 4,
+        usage: wgpu::BufferUsages::STORAGE,
+        mapped_at_creation: false,
+    });
+    let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: None,
+        layout: &pipeline.get_bind_group_layout(0),
+        entries: &[wgpu::BindGroupEntry { binding: 0, resource: buffer.as_entire_binding() }],
+    });
+
+    let submit = |dispatches: u64| -> Result<(), String> {
+        let mut encoder = device.create_command_encoder(&Default::default());
+        {
+            let mut pass = encoder.begin_compute_pass(&Default::default());
+            pass.set_pipeline(&pipeline);
+            pass.set_bind_group(0, &bind, &[]);
+            for _ in 0..dispatches {
+                pass.dispatch_workgroups((GPU_THREADS / 256) as u32, 1, 1);
+            }
+        }
+        queue.submit([encoder.finish()]);
+        device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| e.to_string())?;
+        ops.fetch_add(dispatches * GPU_FLOPS_PER_DISPATCH, Relaxed);
+        Ok(())
+    };
+
+    let t = Instant::now();
+    submit(1)?;
+    let one = t.elapsed().as_secs_f64().max(0.0005);
+    let batch = ((0.15 / one) as u64).clamp(1, 64);
+    while !stop.load(Relaxed) {
+        submit(batch)?;
+    }
+    Ok(())
+}
+
+fn gpu_worker(stop: Arc<AtomicBool>, ops: Arc<AtomicU64>, inner: Arc<Mutex<Inner>>) {
+    if let Err(e) = gpu_run(&stop, &ops, &inner) {
+        inner.lock().unwrap().error = e;
+    }
+}
+
 #[tauri::command]
 pub fn stress_start(state: tauri::State<StressState>, kind: String, threads: usize, seconds: u64) -> Result<(), String> {
-    if !["cpu", "memory", "disk", "all"].contains(&kind.as_str()) {
+    if !["cpu", "memory", "disk", "gpu", "all", "full"].contains(&kind.as_str()) {
         return Err("unknown test".into());
     }
     if state.running.swap(true, SeqCst) {
@@ -156,23 +248,27 @@ pub fn stress_start(state: tauri::State<StressState>, kind: String, threads: usi
 
     let mut sys = System::new();
     sys.refresh_memory();
-    let mem_threads = if kind == "all" { 2 } else { threads };
+    let mem_threads = if kind == "all" || kind == "full" { 2 } else { threads };
     let words = ((sys.total_memory() / 4).min(2 << 30) as usize / mem_threads / 8).max(1 << 20);
     let s = state.inner().clone();
 
     thread::spawn(move || {
         let mut handles: Vec<JoinHandle<()>> = Vec::new();
-        if kind == "cpu" || kind == "all" {
+        if kind == "cpu" || kind == "all" || kind == "full" {
             for i in 0..threads {
                 let (st, op) = (s.stop.clone(), s.ops.clone());
                 handles.push(thread::spawn(move || cpu_worker(st, op, 0x9E37 + i as u64 * 7919)));
             }
         }
-        if kind == "memory" || kind == "all" {
+        if kind == "memory" || kind == "all" || kind == "full" {
             for i in 0..mem_threads {
                 let (st, op) = (s.stop.clone(), s.ops.clone());
                 handles.push(thread::spawn(move || mem_worker(st, op, words, 0xABCD + i as u64 * 104_729)));
             }
+        }
+        if kind == "gpu" || kind == "full" {
+            let (st, op, inner) = (s.stop.clone(), s.ops.clone(), s.inner.clone());
+            handles.push(thread::spawn(move || gpu_worker(st, op, inner)));
         }
         if kind == "disk" {
             let (st, op, w, r) = (s.stop.clone(), s.ops.clone(), s.disk_w.clone(), s.disk_r.clone());
@@ -182,6 +278,9 @@ pub fn stress_start(state: tauri::State<StressState>, kind: String, threads: usi
         let started = Instant::now();
         while !s.stop.load(SeqCst) && started.elapsed().as_secs() < seconds {
             thread::sleep(Duration::from_millis(200));
+            if kind == "gpu" && !s.inner.lock().unwrap().error.is_empty() {
+                break;
+            }
         }
         let natural = !s.stop.load(SeqCst);
         s.stop.store(true, SeqCst);
@@ -190,7 +289,7 @@ pub fn stress_start(state: tauri::State<StressState>, kind: String, threads: usi
         }
         let mut i = s.inner.lock().unwrap();
         if i.reason.is_empty() {
-            i.reason = if natural { "finished".into() } else { "stopped".into() };
+            i.reason = if !i.error.is_empty() { "error".into() } else if natural { "finished".into() } else { "stopped".into() };
         }
         i.ended = Some(Instant::now());
         s.running.store(false, SeqCst);
@@ -222,6 +321,8 @@ pub struct StressStatus {
     reason: String,
     disk_write_mbs: f64,
     disk_read_mbs: f64,
+    device: String,
+    error: String,
 }
 
 #[tauri::command]
@@ -258,5 +359,7 @@ pub fn stress_status(state: tauri::State<StressState>) -> StressStatus {
         reason: i.reason.clone(),
         disk_write_mbs: state.disk_w.load(Relaxed) as f64 / 100.0,
         disk_read_mbs: state.disk_r.load(Relaxed) as f64 / 100.0,
+        device: i.device.clone(),
+        error: i.error.clone(),
     }
 }

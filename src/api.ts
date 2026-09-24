@@ -56,9 +56,20 @@ export interface PowerStats {
   percent: number | null;
   charging: boolean;
   minutesRemaining: number | null;
+  cpuWatts: number | null;
+  gpuWatts: number | null;
+  aneWatts: number | null;
+  dramWatts: number | null;
+  batteryVolts: number | null;
+  batteryAmps: number | null;
+  gpuLoad: number | null;
   pollMs: number;
   source: string;
 }
+
+export interface Fan { id: number; rpm: number; min: number; max: number }
+export interface SmcTemp { key: string; group: string; kind: string; index: number | null; celsius: number }
+export interface SmcSensors { fans: Fan[]; temps: SmcTemp[]; supported: boolean }
 
 export interface StressStatus {
   running: boolean;
@@ -71,6 +82,8 @@ export interface StressStatus {
   reason: string;
   diskWriteMbs: number;
   diskReadMbs: number;
+  device: string;
+  error: string;
 }
 
 export interface ProcInfo { pid: number; name: string; cpu: number; memory: number; status: string; runTime: number; exe: string }
@@ -99,6 +112,7 @@ export const api = {
   detailCategories: () => invoke<string[]>("detail_categories"),
   detailData: (category: string) => invoke<DetailNode[]>("detail_data", { category }),
   power: () => invoke<PowerStats | null>("power_stats"),
+  smc: () => invoke<SmcSensors>("smc_sensors"),
   stressStart: (kind: string, threads: number, seconds: number) => invoke<void>("stress_start", { kind, threads, seconds }),
   stressStop: (reason?: string) => invoke<void>("stress_stop", { reason }),
   stressStatus: () => invoke<StressStatus>("stress_status"),
