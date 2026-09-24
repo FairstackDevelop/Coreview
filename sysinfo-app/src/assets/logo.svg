@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b1d2e"/>
+      <stop offset="1" stop-color="#0a0b12"/>
+    </linearGradient>
+    <linearGradient id="l1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9aa6ff"/>
+      <stop offset="1" stop-color="#6c7bff"/>
+    </linearGradient>
+    <linearGradient id="l2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b57cf7"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="l3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f77fbf"/>
+      <stop offset="1" stop-color="#e0559a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="0.35" stop-color="#c7d0ff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#7c8cff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.35" r="0.6">
+      <stop offset="0" stop-color="#7c8cff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#7c8cff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="190" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="190" fill="url(#halo)"/>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="188.5" fill="none" stroke="#ffffff" stroke-opacity="0.09" stroke-width="3"/>
+  <g stroke-linejoin="round" stroke="#ffffff" stroke-opacity="0.22" stroke-width="4">
+    <path d="M512 452 L788 590 L512 728 L236 590 Z" fill="url(#l3)"/>
+    <path d="M512 388 L788 526 L512 664 L236 526 Z" fill="url(#l2)"/>
+    <path d="M512 324 L788 462 L512 600 L236 462 Z" fill="url(#l1)"/>
+  </g>
+  <path d="M512 324 L788 462 L512 600 L236 462 Z" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="512" cy="462" r="120" fill="url(#glow)"/>
+  <ellipse cx="512" cy="462" rx="92" ry="46" fill="#10111a" fill-opacity="0.9"/>
+  <ellipse cx="512" cy="462" rx="92" ry="46" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="7"/>
+  <circle cx="512" cy="462" r="24" fill="#ffffff"/>
+</svg>
