@@ -299,6 +299,16 @@ const zh: Record<Key, string> = {
   "st.gpuFail": "无法运行 GPU 测试",
   "st.gpuNote": "运行 GPU 测试时屏幕可能出现卡顿。",
 
+  "sd.driverTitle": "需要传感器驱动程序",
+  "sd.driverText": "要读取 CPU 温度、风扇转速及其他主板传感器，Windows 需要一个小型硬件访问驱动程序（PawnIO，来自开源项目 PawnIO）。您可以随时在“应用和功能”中卸载它。",
+  "sd.install": "安装驱动程序",
+  "sd.installing": "正在安装…",
+  "sd.installed": "驱动程序已安装。如果传感器仍未出现，请重启应用。",
+  "sd.failed": "安装失败",
+  "sd.more": "了解详情",
+  "sd.helperError": "无法启动传感器服务",
+  "sd.admin": "请以管理员身份运行 Fairstack Coreview 以读取所有传感器。",
+
   "alert.temp": "温度过高：{label} 达到 {temp}°C",
   "err.generic": "出现问题",
 };

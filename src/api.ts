@@ -67,8 +67,9 @@ export interface PowerStats {
   source: string;
 }
 
-export interface Fan { id: number; rpm: number; min: number; max: number }
-export interface SmcTemp { key: string; group: string; kind: string; index: number | null; celsius: number }
+export interface Fan { id: number; rpm: number; min: number; max: number; name: string }
+export interface SmcTemp { key: string; group: string; kind: string; index: number | null; celsius: number; name: string; hw: string }
+export interface SensorStatus { platform: string; admin: boolean; driver: boolean; helper: string; error: string; sensorCount: number }
 export interface SmcSensors { fans: Fan[]; temps: SmcTemp[]; supported: boolean }
 
 export interface StressStatus {
@@ -113,6 +114,8 @@ export const api = {
   detailData: (category: string) => invoke<DetailNode[]>("detail_data", { category }),
   power: () => invoke<PowerStats | null>("power_stats"),
   smc: () => invoke<SmcSensors>("smc_sensors"),
+  sensorStatus: () => invoke<SensorStatus>("sensor_status"),
+  installDriver: () => invoke<string>("install_sensor_driver"),
   stressStart: (kind: string, threads: number, seconds: number) => invoke<void>("stress_start", { kind, threads, seconds }),
   stressStop: (reason?: string) => invoke<void>("stress_stop", { reason }),
   stressStatus: () => invoke<StressStatus>("stress_status"),

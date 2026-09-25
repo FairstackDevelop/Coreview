@@ -297,6 +297,16 @@ const en = {
   "st.gpuFail": "The GPU test could not run",
   "st.gpuNote": "GPU tests can make the screen stutter while running.",
 
+  "sd.driverTitle": "Sensor driver required",
+  "sd.driverText": "To read CPU temperatures, fan speeds and other motherboard sensors, Windows needs a small hardware-access driver (PawnIO, from the open-source PawnIO project). You can remove it at any time in Apps & features.",
+  "sd.install": "Install driver",
+  "sd.installing": "Installing…",
+  "sd.installed": "Driver installed. If sensors do not appear yet, restart the app.",
+  "sd.failed": "Installation failed",
+  "sd.more": "Learn more",
+  "sd.helperError": "The sensor service could not start",
+  "sd.admin": "Run Fairstack Coreview as administrator to read all sensors.",
+
   "alert.temp": "High temperature: {label} is at {temp}°C",
   "err.generic": "Something went wrong",
 } as const;

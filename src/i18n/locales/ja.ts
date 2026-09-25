@@ -299,6 +299,16 @@ const ja: Record<Key, string> = {
   "st.gpuFail": "GPUテストを実行できませんでした",
   "st.gpuNote": "GPUテスト中は画面がカクつくことがあります。",
 
+  "sd.driverTitle": "センサードライバーが必要です",
+  "sd.driverText": "CPU温度、ファン速度、その他のマザーボードセンサーを読み取るには、Windows に小さなハードウェアアクセス用ドライバー（オープンソースの PawnIO プロジェクトの PawnIO）が必要です。「アプリと機能」からいつでも削除できます。",
+  "sd.install": "ドライバーをインストール",
+  "sd.installing": "インストール中…",
+  "sd.installed": "ドライバーをインストールしました。センサーがまだ表示されない場合は、アプリを再起動してください。",
+  "sd.failed": "インストールに失敗しました",
+  "sd.more": "詳細を見る",
+  "sd.helperError": "センサーサービスを起動できませんでした",
+  "sd.admin": "すべてのセンサーを読み取るには、Fairstack Coreview を管理者として実行してください。",
+
   "alert.temp": "高温を検出: {label} が {temp}°C です",
   "err.generic": "問題が発生しました",
 };

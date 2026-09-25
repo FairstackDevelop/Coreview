@@ -66,45 +66,65 @@ fn mac_power() -> Option<PowerStats> {
 }
 
 #[cfg(windows)]
-fn win_power() -> Option<PowerStats> {
-    let status = ps("Get-CimInstance -Namespace root/wmi -ClassName BatteryStatus | Select-Object DischargeRate,ChargeRate,Charging,Discharging,PowerOnline").into_iter().next()?;
+static BATTERY: std::sync::Mutex<Option<(std::time::Instant, Option<serde_json::Value>, Option<serde_json::Value>)>> = std::sync::Mutex::new(None);
+
+#[cfg(windows)]
+fn battery_rows() -> (Option<serde_json::Value>, Option<serde_json::Value>) {
+    let mut cache = BATTERY.lock().unwrap();
+    if let Some((at, status, battery)) = cache.as_ref() {
+        if at.elapsed().as_secs() < 15 {
+            return (status.clone(), battery.clone());
+        }
+    }
+    let status = ps("Get-CimInstance -Namespace root/wmi -ClassName BatteryStatus | Select-Object DischargeRate,ChargeRate,Charging,Discharging,PowerOnline").into_iter().next();
     let battery = ps("Get-CimInstance Win32_Battery | Select-Object EstimatedChargeRemaining,EstimatedRunTime").into_iter().next();
-    let discharge = n(&status, "DischargeRate") as f64 / 1000.0;
-    let charge = n(&status, "ChargeRate") as f64 / 1000.0;
-    let flag = |k: &str| status.get(k).and_then(|v| v.as_bool()).unwrap_or(false);
-    let gpu_load = ps("(Get-Counter '\\GPU Engine(*engtype_3D)\\Utilization Percentage' -ErrorAction SilentlyContinue).CounterSamples | Measure-Object CookedValue -Sum | Select-Object -ExpandProperty Sum")
-        .first()
-        .and_then(|v| v.as_f64());
+    *cache = Some((std::time::Instant::now(), status.clone(), battery.clone()));
+    (status, battery)
+}
+
+#[cfg(windows)]
+fn win_power() -> Option<PowerStats> {
+    let (status, battery) = battery_rows();
+    let extra = crate::winsensors::to_power();
+    if status.is_none() && battery.is_none() && extra.cpu.is_none() && extra.gpu.is_none() && extra.gpu_load.is_none() {
+        return None;
+    }
+    let discharge = status.as_ref().map(|s| n(s, "DischargeRate") as f64 / 1000.0).unwrap_or(0.0);
+    let charge = status.as_ref().map(|s| n(s, "ChargeRate") as f64 / 1000.0).unwrap_or(0.0);
+    let flag = |k: &str| status.as_ref().and_then(|s| s.get(k)).and_then(|v| v.as_bool()).unwrap_or(false);
     Some(PowerStats {
-        gpu_load,
+        cpu_watts: extra.cpu,
+        gpu_watts: extra.gpu,
+        gpu_load: extra.gpu_load,
         watts: (discharge > 0.0).then_some(discharge),
-        battery_watts: Some(if charge > 0.0 { charge } else { -discharge }),
+        battery_watts: status.as_ref().map(|_| if charge > 0.0 { charge } else { -discharge }),
         on_ac: flag("PowerOnline"),
         charging: flag("Charging"),
         percent: battery.as_ref().map(|b| n(b, "EstimatedChargeRemaining")),
         minutes_remaining: battery.as_ref().map(|b| n(b, "EstimatedRunTime")).filter(|m| *m < 60_000),
-        poll_ms: 5000,
-        source: "BatteryStatus".into(),
+        poll_ms: 2000,
+        source: "LibreHardwareMonitor".into(),
         ..Default::default()
     })
 }
 
 #[cfg(target_os = "macos")]
-fn platform_power() -> Option<PowerStats> {
+fn platform_power(_app: &tauri::AppHandle) -> Option<PowerStats> {
     mac_power()
 }
 
 #[cfg(windows)]
-fn platform_power() -> Option<PowerStats> {
+fn platform_power(app: &tauri::AppHandle) -> Option<PowerStats> {
+    crate::winsensors::ensure_started(app);
     win_power()
 }
 
 #[cfg(not(any(target_os = "macos", windows)))]
-fn platform_power() -> Option<PowerStats> {
+fn platform_power(_app: &tauri::AppHandle) -> Option<PowerStats> {
     None
 }
 
 #[tauri::command]
-pub async fn power_stats() -> Option<PowerStats> {
-    tauri::async_runtime::spawn_blocking(platform_power).await.ok().flatten()
+pub async fn power_stats(app: tauri::AppHandle) -> Option<PowerStats> {
+    tauri::async_runtime::spawn_blocking(move || platform_power(&app)).await.ok().flatten()
 }

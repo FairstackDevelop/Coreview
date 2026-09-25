@@ -1,5 +1,5 @@
 [package]
-name = "sysinfo-app"
+name = "fairstack-coreview"
 version = "0.1.0"
 description = "Fairstack Coreview — cross-platform system information and monitoring"
 authors = ["Fairstack"]

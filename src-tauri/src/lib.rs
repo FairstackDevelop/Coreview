@@ -9,6 +9,7 @@ mod smc;
 mod startup;
 mod stress;
 mod util;
+mod winsensors;
 
 fn log_line(text: &str) {
     use std::io::Write;
@@ -45,6 +46,8 @@ pub fn run() {
             startup::startup_add,
             power::power_stats,
             smc::smc_sensors,
+            winsensors::sensor_status,
+            winsensors::install_sensor_driver,
             stress::stress_start,
             stress::stress_stop,
             stress::stress_status,

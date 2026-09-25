@@ -299,6 +299,16 @@ const fr: Record<Key, string> = {
   "st.gpuFail": "Le test GPU n’a pas pu démarrer",
   "st.gpuNote": "Les tests GPU peuvent provoquer des saccades à l’écran.",
 
+  "sd.driverTitle": "Pilote de capteurs requis",
+  "sd.driverText": "Pour lire les températures du processeur, la vitesse des ventilateurs et les autres capteurs de la carte mère, Windows a besoin d’un petit pilote d’accès au matériel (PawnIO, issu du projet open source PawnIO). Vous pouvez le supprimer à tout moment dans Applications et fonctionnalités.",
+  "sd.install": "Installer le pilote",
+  "sd.installing": "Installation…",
+  "sd.installed": "Pilote installé. Si les capteurs n’apparaissent pas encore, redémarrez l’application.",
+  "sd.failed": "Échec de l’installation",
+  "sd.more": "En savoir plus",
+  "sd.helperError": "Le service de capteurs n’a pas pu démarrer",
+  "sd.admin": "Lancez Fairstack Coreview en tant qu’administrateur pour lire tous les capteurs.",
+
   "alert.temp": "Température élevée : {label} à {temp} °C",
   "err.generic": "Une erreur est survenue",
 };

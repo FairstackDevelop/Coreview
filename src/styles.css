@@ -674,3 +674,6 @@ tr.dim td:not(:first-child) { opacity: 0.5; }
 .meter { display: grid; grid-template-columns: 110px 1fr 74px; gap: 12px; align-items: center; padding: 6px 0; font-size: 0.8125rem; }
 .meter span { color: var(--muted); }
 .meter b { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.driver-card { margin-bottom: 16px; border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+.driver-card p { margin-bottom: 12px; font-size: 0.875rem; opacity: 0.9; }

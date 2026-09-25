@@ -3,28 +3,31 @@ use serde::Serialize;
 #[derive(Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Fan {
-    id: u32,
-    rpm: f64,
-    min: f64,
-    max: f64,
+    pub id: u32,
+    pub rpm: f64,
+    pub min: f64,
+    pub max: f64,
+    pub name: String,
 }
 
 #[derive(Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SmcTemp {
-    key: String,
-    group: String,
-    kind: String,
-    index: Option<u32>,
-    celsius: f64,
+    pub key: String,
+    pub group: String,
+    pub kind: String,
+    pub index: Option<u32>,
+    pub celsius: f64,
+    pub name: String,
+    pub hw: String,
 }
 
 #[derive(Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SmcSensors {
-    fans: Vec<Fan>,
-    temps: Vec<SmcTemp>,
-    supported: bool,
+    pub fans: Vec<Fan>,
+    pub temps: Vec<SmcTemp>,
+    pub supported: bool,
 }
 
 #[cfg(target_os = "macos")]
@@ -209,6 +212,7 @@ mod mac {
                 rpm,
                 min: smc.number(&format!("F{i}Mn")).unwrap_or(0.0),
                 max: smc.number(&format!("F{i}Mx")).unwrap_or(0.0),
+                ..Default::default()
             });
         }
         let mut keys: Vec<String> = smc.keys().into_iter().filter(|k| k.starts_with('T')).collect();
@@ -216,7 +220,7 @@ mod mac {
         for key in keys {
             let Some(v) = smc.number(&key).filter(|v| *v > 1.0 && *v < 130.0) else { continue };
             let (group, kind) = classify(&key);
-            out.temps.push(SmcTemp { key, group: group.into(), kind: kind.into(), index: None, celsius: v });
+            out.temps.push(SmcTemp { key, group: group.into(), kind: kind.into(), celsius: v, ..Default::default() });
         }
         for kind in ["perf", "eff", "diode", "core"] {
             for (n, t) in out.temps.iter_mut().filter(|t| t.kind == kind).enumerate() {
@@ -227,25 +231,20 @@ mod mac {
     }
 }
 
-pub fn read() -> SmcSensors {
+pub fn read(app: &tauri::AppHandle) -> SmcSensors {
     #[cfg(target_os = "macos")]
     {
+        let _ = app;
         mac::read_all()
     }
     #[cfg(not(target_os = "macos"))]
     {
-        use crate::util::{n, ps};
-        let fans = ps("Get-CimInstance Win32_Fan | Select-Object Name,DesiredSpeed")
-            .iter()
-            .filter(|f| n(f, "DesiredSpeed") > 0)
-            .enumerate()
-            .map(|(i, f)| Fan { id: i as u32, rpm: n(f, "DesiredSpeed") as f64, ..Default::default() })
-            .collect();
-        SmcSensors { fans, temps: Vec::new(), supported: cfg!(windows) }
+        crate::winsensors::ensure_started(app);
+        crate::winsensors::to_smc()
     }
 }
 
 #[tauri::command]
-pub async fn smc_sensors() -> SmcSensors {
-    tauri::async_runtime::spawn_blocking(read).await.unwrap_or_default()
+pub async fn smc_sensors(app: tauri::AppHandle) -> SmcSensors {
+    tauri::async_runtime::spawn_blocking(move || read(&app)).await.unwrap_or_default()
 }

@@ -299,6 +299,16 @@ const cs: Record<Key, string> = {
   "st.gpuFail": "Test GPU se nepodařilo spustit",
   "st.gpuNote": "Při testech GPU se může obraz na obrazovce sekat.",
 
+  "sd.driverTitle": "Je potřeba ovladač senzorů",
+  "sd.driverText": "Ke čtení teplot procesoru, rychlosti ventilátorů a dalších senzorů základní desky potřebuje Windows malý ovladač pro přístup k hardwaru (PawnIO z open-source projektu PawnIO). Můžete ho kdykoli odebrat v části Aplikace a funkce.",
+  "sd.install": "Nainstalovat ovladač",
+  "sd.installing": "Instaluje se…",
+  "sd.installed": "Ovladač je nainstalován. Pokud se senzory ještě nezobrazují, restartujte aplikaci.",
+  "sd.failed": "Instalace se nezdařila",
+  "sd.more": "Zjistit více",
+  "sd.helperError": "Službu senzorů se nepodařilo spustit",
+  "sd.admin": "Spusťte Fairstack Coreview jako správce, aby bylo možné číst všechny senzory.",
+
   "alert.temp": "Vysoká teplota: {label} má {temp} °C",
   "err.generic": "Něco se pokazilo",
 };

@@ -1046,6 +1046,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "fairstack-coreview"
+version = "0.1.0"
+dependencies = [
+ "core-foundation",
+ "core-foundation-sys",
+ "libc",
+ "pollster",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-notification",
+ "tauri-plugin-opener",
+ "wgpu",
+ "window-vibrancy 0.8.1",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3707,26 +3727,6 @@ dependencies = [
  "objc2-io-kit",
  "objc2-open-directory",
  "windows 0.62.2",
-]
-
-[[package]]
-name = "sysinfo-app"
-version = "0.1.0"
-dependencies = [
- "core-foundation",
- "core-foundation-sys",
- "libc",
- "pollster",
- "serde",
- "serde_json",
- "sysinfo",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "wgpu",
- "window-vibrancy 0.8.1",
 ]
 
 [[package]]

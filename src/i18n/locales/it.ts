@@ -299,6 +299,16 @@ const it: Record<Key, string> = {
   "st.gpuFail": "Impossibile eseguire il test GPU",
   "st.gpuNote": "I test GPU possono causare scatti sullo schermo.",
 
+  "sd.driverTitle": "Serve il driver dei sensori",
+  "sd.driverText": "Per leggere le temperature della CPU, la velocità delle ventole e gli altri sensori della scheda madre, Windows ha bisogno di un piccolo driver di accesso all’hardware (PawnIO, dal progetto open source PawnIO). Puoi rimuoverlo in qualsiasi momento da App e funzionalità.",
+  "sd.install": "Installa driver",
+  "sd.installing": "Installazione…",
+  "sd.installed": "Driver installato. Se i sensori non compaiono ancora, riavvia l’app.",
+  "sd.failed": "Installazione non riuscita",
+  "sd.more": "Scopri di più",
+  "sd.helperError": "Impossibile avviare il servizio dei sensori",
+  "sd.admin": "Avvia Fairstack Coreview come amministratore per leggere tutti i sensori.",
+
   "alert.temp": "Temperatura elevata: {label} a {temp}°C",
   "err.generic": "Qualcosa è andato storto",
 };

@@ -299,6 +299,16 @@ const tr: Record<Key, string> = {
   "st.gpuFail": "GPU testi çalıştırılamadı",
   "st.gpuNote": "GPU testleri sırasında ekranda takılmalar olabilir.",
 
+  "sd.driverTitle": "Sensör sürücüsü gerekli",
+  "sd.driverText": "CPU sıcaklıklarını, fan hızlarını ve diğer anakart sensörlerini okumak için Windows’un küçük bir donanım erişim sürücüsüne (açık kaynaklı PawnIO projesinden PawnIO) ihtiyacı vardır. İstediğiniz zaman Uygulamalar ve özellikler’den kaldırabilirsiniz.",
+  "sd.install": "Sürücüyü yükle",
+  "sd.installing": "Yükleniyor…",
+  "sd.installed": "Sürücü yüklendi. Sensörler henüz görünmüyorsa uygulamayı yeniden başlatın.",
+  "sd.failed": "Yükleme başarısız oldu",
+  "sd.more": "Daha fazla bilgi",
+  "sd.helperError": "Sensör hizmeti başlatılamadı",
+  "sd.admin": "Tüm sensörleri okumak için Fairstack Coreview’i yönetici olarak çalıştırın.",
+
   "alert.temp": "Yüksek sıcaklık: {label} {temp}°C",
   "err.generic": "Bir şeyler ters gitti",
 };

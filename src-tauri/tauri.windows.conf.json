@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "../sensors-helper/out/*": "sensors/"
+    }
+  }
+}

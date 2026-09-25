@@ -299,6 +299,16 @@ const pl: Record<Key, string> = {
   "st.gpuFail": "Nie udało się uruchomić testu GPU",
   "st.gpuNote": "Podczas testów GPU obraz na ekranie może się przycinać.",
 
+  "sd.driverTitle": "Wymagany sterownik czujników",
+  "sd.driverText": "Aby odczytać temperatury procesora, prędkość wentylatorów i inne czujniki płyty głównej, Windows potrzebuje niewielkiego sterownika dostępu do sprzętu (PawnIO z otwartego projektu PawnIO). Możesz go usunąć w dowolnej chwili w sekcji Aplikacje i funkcje.",
+  "sd.install": "Zainstaluj sterownik",
+  "sd.installing": "Instalowanie…",
+  "sd.installed": "Sterownik zainstalowany. Jeśli czujniki jeszcze się nie pojawiły, uruchom aplikację ponownie.",
+  "sd.failed": "Instalacja nie powiodła się",
+  "sd.more": "Dowiedz się więcej",
+  "sd.helperError": "Nie udało się uruchomić usługi czujników",
+  "sd.admin": "Uruchom Fairstack Coreview jako administrator, aby odczytać wszystkie czujniki.",
+
   "alert.temp": "Wysoka temperatura: {label} — {temp}°C",
   "err.generic": "Coś poszło nie tak",
 };

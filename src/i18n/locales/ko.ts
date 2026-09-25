@@ -299,6 +299,16 @@ const ko: Record<Key, string> = {
   "st.gpuFail": "GPU 테스트를 실행할 수 없습니다",
   "st.gpuNote": "GPU 테스트 중에는 화면이 끊길 수 있습니다.",
 
+  "sd.driverTitle": "센서 드라이버가 필요합니다",
+  "sd.driverText": "CPU 온도, 팬 속도 및 기타 메인보드 센서를 읽으려면 Windows에 작은 하드웨어 접근 드라이버(오픈 소스 PawnIO 프로젝트의 PawnIO)가 필요합니다. ‘앱 및 기능’에서 언제든지 제거할 수 있습니다.",
+  "sd.install": "드라이버 설치",
+  "sd.installing": "설치 중…",
+  "sd.installed": "드라이버가 설치되었습니다. 센서가 아직 보이지 않으면 앱을 다시 시작하세요.",
+  "sd.failed": "설치하지 못했습니다",
+  "sd.more": "자세히 알아보기",
+  "sd.helperError": "센서 서비스를 시작할 수 없습니다",
+  "sd.admin": "모든 센서를 읽으려면 Fairstack Coreview를 관리자 권한으로 실행하세요.",
+
   "alert.temp": "고온 감지: {label} {temp}°C",
   "err.generic": "문제가 발생했습니다",
 };

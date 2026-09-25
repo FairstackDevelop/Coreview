@@ -1,18 +1,17 @@
 import { useState } from "react";
-import type { Temp } from "../api";
-import { useLive } from "../live";
+import { useLive, type MergedTemp } from "../live";
 import { bytes, mhz, pct, rate } from "../format";
 import type { Key } from "../i18n";
-import { groupOf, groupOrder, tone } from "../sensors";
+import { groupOrder, tone } from "../sensors";
 import { useSettings } from "../settings";
 import { Bar, Card, Chart, Icon, PageHead, Ring } from "../ui";
 
-function TempGroups({ temps }: { temps: Temp[] }) {
+function TempGroups({ temps }: { temps: MergedTemp[] }) {
   const { t } = useSettings();
   const [open, setOpen] = useState(false);
   const groups = groupOrder
     .map((g) => {
-      const items = temps.filter((x) => groupOf(x.label) === g);
+      const items = temps.filter((x) => x.group === g);
       const values = items.map((x) => x.celsius);
       return {
         g,
@@ -59,12 +58,12 @@ function TempGroups({ temps }: { temps: Temp[] }) {
 
 export default function Monitor() {
   const { t, locale } = useSettings();
-  const { latest: s, history, power, paused, setPaused } = useLive();
+  const { latest: s, temps, history, power, paused, setPaused } = useLive();
 
   if (!s) return <div className="empty">{t("common.loading")}</div>;
 
   const memPct = s.memTotal ? (s.memUsed / s.memTotal) * 100 : 0;
-  const hottest = s.temps.reduce((m, x) => Math.max(m, x.celsius), 0);
+  const hottest = temps.filter((x) => x.group !== "battery").reduce((m, x) => Math.max(m, x.celsius), 0);
 
   return (
     <>
@@ -142,10 +141,10 @@ export default function Monitor() {
         </Card>
 
         <Card title={t("mon.temps")} className="span2">
-          {s.temps.length === 0 ? (
+          {temps.length === 0 ? (
             <p className="muted">{t("mon.noSensors")}</p>
           ) : (
-            <TempGroups temps={s.temps} />
+            <TempGroups temps={temps} />
           )}
         </Card>
       </div>

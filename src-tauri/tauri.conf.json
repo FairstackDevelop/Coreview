@@ -43,5 +43,6 @@
         "silent": true
       }
     }
-  }
+  },
+  "mainBinaryName": "Fairstack Coreview"
 }

@@ -299,6 +299,16 @@ const es: Record<Key, string> = {
   "st.gpuFail": "No se pudo ejecutar la prueba de GPU",
   "st.gpuNote": "Las pruebas de GPU pueden provocar tirones en la pantalla.",
 
+  "sd.driverTitle": "Se requiere un controlador de sensores",
+  "sd.driverText": "Para leer las temperaturas de la CPU, la velocidad de los ventiladores y otros sensores de la placa base, Windows necesita un pequeño controlador de acceso al hardware (PawnIO, del proyecto de código abierto PawnIO). Puedes quitarlo cuando quieras en Aplicaciones y características.",
+  "sd.install": "Instalar controlador",
+  "sd.installing": "Instalando…",
+  "sd.installed": "Controlador instalado. Si los sensores aún no aparecen, reinicia la aplicación.",
+  "sd.failed": "Error de instalación",
+  "sd.more": "Más información",
+  "sd.helperError": "No se pudo iniciar el servicio de sensores",
+  "sd.admin": "Ejecuta Fairstack Coreview como administrador para leer todos los sensores.",
+
   "alert.temp": "Temperatura alta: {label} a {temp} °C",
   "err.generic": "Algo salió mal",
 };

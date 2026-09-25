@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { api, type LiveStats, type PowerStats, type SmcSensors } from "./api";
+import { groupOf, smcGroup, type Group } from "./sensors";
 import { useSettings } from "./settings";
 
 export interface Point {
@@ -26,8 +27,15 @@ export interface SensorStat {
   hist: number[];
 }
 
+export interface MergedTemp {
+  label: string;
+  celsius: number;
+  group: Group;
+}
+
 interface LiveCtx {
   latest: LiveStats | null;
+  temps: MergedTemp[];
   history: Point[];
   power: PowerStats | null;
   smc: SmcSensors | null;
@@ -70,6 +78,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<string | null>(null);
   const lastAlert = useRef(0);
   const powerRef = useRef<PowerStats | null>(null);
+  const smcRef = useRef<SmcSensors | null>(null);
   const cfg = useRef({ settings, t });
   cfg.current = { settings, t };
 
@@ -90,6 +99,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       try {
         const s = await api.smc();
         if (!alive) return;
+        smcRef.current = s;
         setSmc(s);
         setSensors((prev) => mergeStats(prev, s.temps.map((x) => [`smc:${x.key}`, x.celsius])));
         setFanHist((prev) => {
@@ -114,7 +124,11 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       try {
         const s = await api.live();
         if (!alive) return;
-        const hottest = s.temps.reduce((m, x) => (x.celsius > m.celsius ? x : m), { label: "", celsius: 0 } as { label: string; celsius: number });
+        const pool = [
+          ...s.temps.map((x) => ({ label: x.label, celsius: x.celsius, group: groupOf(x.label) })),
+          ...(smcRef.current?.temps ?? []).map((x) => ({ label: x.name || x.key, celsius: x.celsius, group: smcGroup(x.group) })),
+        ].filter((x) => x.group !== "battery");
+        const hottest = pool.reduce((m, x) => (x.celsius > m.celsius ? x : m), { label: "", celsius: 0 });
         setLatest(s);
         setSensors((prev) => mergeStats(prev, s.temps.map((x) => [x.label, x.celsius])));
         setHistory((h) =>
@@ -157,5 +171,13 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     };
   }, [paused, settings.interval]);
 
-  return <Ctx.Provider value={{ latest, history, power, smc, fanHist, sensors, resetSensors, paused, setPaused, toast }}>{children}</Ctx.Provider>;
+  const temps = useMemo<MergedTemp[]>(
+    () => [
+      ...(latest?.temps ?? []).map((x) => ({ label: x.label, celsius: x.celsius, group: groupOf(x.label) })),
+      ...(smc?.temps ?? []).map((x) => ({ label: x.name || x.key, celsius: x.celsius, group: smcGroup(x.group) })),
+    ],
+    [latest, smc],
+  );
+
+  return <Ctx.Provider value={{ latest, temps, history, power, smc, fanHist, sensors, resetSensors, paused, setPaused, toast }}>{children}</Ctx.Provider>;
 }

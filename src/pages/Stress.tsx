@@ -3,7 +3,6 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { api, type StressStatus } from "../api";
 import { duration, mhz, pct } from "../format";
 import { useLive } from "../live";
-import { groupOf } from "../sensors";
 import { useSettings } from "../settings";
 import { Badge, Bar, Card, Chart, Field, Icon, PageHead, Segmented, Slider } from "../ui";
 
@@ -65,7 +64,7 @@ function summarize(samples: Sample[], s: StressStatus): Result {
 
 export default function Stress() {
   const { t, locale, settings, set } = useSettings();
-  const { latest } = useLive();
+  const { latest, temps: liveTemps } = useLive();
   const cores = latest?.cpuCores.length ?? 4;
   const [kind, setKind] = useState<Kind>("cpu");
   const [threads, setThreads] = useState(cores);
@@ -76,6 +75,8 @@ export default function Stress() {
   const running = status?.running ?? false;
   const latestRef = useRef(latest);
   latestRef.current = latest;
+  const tempsRef = useRef(liveTemps);
+  tempsRef.current = liveTemps;
   const powerRef = useRef<number | null>(null);
   const { power } = useLive();
   powerRef.current = power?.watts ?? null;
@@ -100,7 +101,7 @@ export default function Stress() {
         if (s.running) {
           wasRunning.current = true;
           const live = latestRef.current;
-          const hottest = Math.max(0, ...(live?.temps ?? []).filter((x) => groupOf(x.label) !== "battery").map((x) => x.celsius));
+          const hottest = Math.max(0, ...tempsRef.current.filter((x) => x.group !== "battery").map((x) => x.celsius));
           setSamples((prev) => [
             ...prev,
             { t: s.elapsedSecs, cpu: live?.cpuTotal ?? 0, temp: hottest, freq: live?.cpuMhz ?? 0, power: powerRef.current, gpu: gpuRef.current, rate: s.opsPerSec },

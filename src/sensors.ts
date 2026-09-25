@@ -30,6 +30,7 @@ export function describe(label: string, t: Translate): string {
 
 export function describeSmc(s: SmcTemp, t: Translate): string {
   if (s.kind) return t(`sk.${s.kind}` as Key, { n: s.index ?? "" }).trim();
+  if (s.name) return s.name;
   if (s.group === "battery") return `${t("tg.battery")} ${s.key.charAt(2)}`;
   return s.key;
 }

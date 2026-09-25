@@ -44,6 +44,15 @@ jobs:
           workspaces: src-tauri -> target
           key: ${{ matrix.target }}
 
+      - uses: actions/setup-dotnet@v4
+        if: runner.os == 'Windows'
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build sensor helper
+        if: runner.os == 'Windows'
+        run: dotnet publish sensors-helper/CoreviewSensors.csproj -c Release -o sensors-helper/out
+
       - run: npm ci
 
       - run: npm run tauri build -- --target ${{ matrix.target }}

@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLive, type SensorStat } from "../live";
 import { duration, pct } from "../format";
 import type { Key } from "../i18n";
 import { describe, describeSmc, groupOf, groupOrder, smcGroup, tone, type Group } from "../sensors";
 import { useSettings } from "../settings";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { api, type SensorStatus } from "../api";
 import { Bar, Card, Chart, Icon, PageHead, Spark } from "../ui";
 
 interface Row {
@@ -12,6 +14,66 @@ interface Row {
   name: string;
   group: Group;
   stat: SensorStat;
+}
+
+function SensorAccess() {
+  const { t } = useSettings();
+  const [status, setStatus] = useState<SensorStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () => api.sensorStatus().then((s) => alive && setStatus(s)).catch(() => {});
+    load();
+    const id = setInterval(load, 6000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  if (!status || status.platform !== "windows") return null;
+
+  const install = async () => {
+    setBusy(true);
+    setResult(null);
+    try {
+      await api.installDriver();
+      setResult({ ok: true, text: t("sd.installed") });
+    } catch (e) {
+      setResult({ ok: false, text: `${t("sd.failed")}: ${e}` });
+    }
+    setBusy(false);
+    api.sensorStatus().then(setStatus).catch(() => {});
+  };
+
+  return (
+    <>
+      {status.helper !== "running" && (
+        <div className="note error">
+          {t("sd.helperError")}
+          {status.error ? `: ${status.error}` : ""}
+        </div>
+      )}
+      {!status.admin && status.helper === "running" && <div className="note error">{t("sd.admin")}</div>}
+      {!status.driver && (
+        <Card title={t("sd.driverTitle")} className="driver-card">
+          <p>{t("sd.driverText")}</p>
+          <div className="page-actions">
+            <button className="btn primary" onClick={install} disabled={busy}>
+              <Icon name="download" />
+              {busy ? t("sd.installing") : t("sd.install")}
+            </button>
+            <button className="btn" onClick={() => openUrl("https://pawnio.eu")}>
+              {t("sd.more")}
+            </button>
+          </div>
+          {result && <div className={`note ${result.ok ? "" : "error"}`}>{result.text}</div>}
+        </Card>
+      )}
+    </>
+  );
 }
 
 export default function Sensors() {
@@ -29,7 +91,7 @@ export default function Sensors() {
       if (key.startsWith("smc:")) {
         const id = key.slice(4);
         const m = smc?.temps.find((x) => x.key === id);
-        return { key, raw: `SMC ${id}`, name: m ? describeSmc(m, t) : id, group: m ? smcGroup(m.group) : "other", stat };
+        return { key, raw: m?.hw ? m.hw : `SMC ${id}`, name: m ? describeSmc(m, t) : id, group: m ? smcGroup(m.group) : "other", stat };
       }
       return { key, raw: key, name: describe(key, t), group: groupOf(key), stat };
     });
@@ -68,6 +130,8 @@ export default function Sensors() {
           </button>
         }
       />
+
+      <SensorAccess />
 
       <h2 className="section first">{t("pow.title")}</h2>
       {!power ? (
@@ -144,7 +208,7 @@ export default function Sensors() {
       {smc && smc.fans.length > 0 ? (
         <div className="grid">
           {smc.fans.map((f) => (
-            <Card key={f.id} title={t("fan.name", { n: f.id + 1 })} right={<b className="accent">{Math.round(f.rpm)} RPM</b>}>
+            <Card key={f.id} title={f.name || t("fan.name", { n: f.id + 1 })} right={<b className="accent">{Math.round(f.rpm)} RPM</b>}>
               {f.max > 0 && <Bar value={(f.rpm / f.max) * 100} />}
               <Spark data={fanHist[f.id] ?? []} color="var(--c3)" />
               {f.max > 0 && (
