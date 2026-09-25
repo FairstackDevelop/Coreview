@@ -3,6 +3,8 @@ name = "fairstack-coreview"
 version = "0.1.0"
 description = "Fairstack Coreview — cross-platform system information and monitoring"
 authors = ["Fairstack"]
+license = "MIT"
+repository = "https://github.com/FairstackDevelop/Coreview"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
