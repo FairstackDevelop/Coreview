@@ -23,7 +23,7 @@ pub async fn connections(state: tauri::State<'_, AppState>) -> Result<Vec<Connec
         let text = tauri::async_runtime::spawn_blocking(|| run("netstat", &["-ano", "-p", "TCP"]).unwrap_or_default())
             .await
             .map_err(|e| e.to_string())?;
-        let mut sys = state.sys.lock().unwrap();
+        let mut sys = state.get().sys.lock().unwrap();
         sys.refresh_processes(ProcessesToUpdate::All, true);
         for line in text.lines() {
             let f: Vec<&str> = line.split_whitespace().collect();

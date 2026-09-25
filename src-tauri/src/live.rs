@@ -1,9 +1,9 @@
 use serde::Serialize;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 use sysinfo::{Components, Disks, Networks, Pid, ProcessesToUpdate, System};
 
-pub struct AppState {
+pub struct Shared {
     pub sys: Mutex<System>,
     nets: Mutex<Networks>,
     disks: Mutex<Disks>,
@@ -11,8 +11,21 @@ pub struct AppState {
     last: Mutex<Instant>,
 }
 
+#[derive(Clone)]
+pub struct AppState(Arc<OnceLock<Shared>>);
+
 impl AppState {
     pub fn new() -> Self {
+        Self(Arc::new(OnceLock::new()))
+    }
+
+    pub fn get(&self) -> &Shared {
+        self.0.get_or_init(Shared::new)
+    }
+}
+
+impl Shared {
+    fn new() -> Self {
         let mut sys = System::new();
         sys.refresh_cpu_all();
         sys.refresh_memory();
@@ -63,8 +76,7 @@ pub struct LiveStats {
     load: [f64; 3],
 }
 
-#[tauri::command]
-pub fn live_stats(state: tauri::State<AppState>) -> LiveStats {
+fn collect_live(state: &Shared) -> LiveStats {
     let elapsed = {
         let mut last = state.last.lock().unwrap();
         let e = last.elapsed().as_secs_f64().max(0.05);
@@ -152,8 +164,7 @@ pub struct ProcInfo {
     exe: String,
 }
 
-#[tauri::command]
-pub fn processes(state: tauri::State<AppState>) -> Vec<ProcInfo> {
+fn collect_processes(state: &Shared) -> Vec<ProcInfo> {
     let mut sys = state.sys.lock().unwrap();
     sys.refresh_processes(ProcessesToUpdate::All, true);
     let cores = sys.cpus().len().max(1) as f32;
@@ -175,8 +186,31 @@ pub fn processes(state: tauri::State<AppState>) -> Vec<ProcInfo> {
     list
 }
 
-#[tauri::command]
-pub fn kill_process(pid: u32, state: tauri::State<AppState>) -> bool {
+fn terminate(pid: u32, state: &Shared) -> bool {
     let sys = state.sys.lock().unwrap();
     sys.process(Pid::from_u32(pid)).map(|p| p.kill()).unwrap_or(false)
+}
+
+#[tauri::command]
+pub async fn live_stats(state: tauri::State<'_, AppState>) -> Result<LiveStats, String> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || collect_live(state.get()))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn processes(state: tauri::State<'_, AppState>) -> Result<Vec<ProcInfo>, String> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || collect_processes(state.get()))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn kill_process(pid: u32, state: tauri::State<'_, AppState>) -> Result<bool, String> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || terminate(pid, state.get()))
+        .await
+        .map_err(|e| e.to_string())
 }

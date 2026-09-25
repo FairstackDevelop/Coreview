@@ -10,8 +10,24 @@ mod startup;
 mod stress;
 mod util;
 
+fn log_line(text: &str) {
+    use std::io::Write;
+    let path = std::env::temp_dir().join("fairstack-coreview.log");
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(f, "{text}");
+    }
+}
+
+fn install_crash_log() {
+    std::panic::set_hook(Box::new(|info| {
+        log_line(&format!("PANIC: {info}\n{}", std::backtrace::Backtrace::force_capture()));
+    }));
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    install_crash_log();
+    log_line(&format!("start {} {}", env!("CARGO_PKG_VERSION"), std::env::consts::OS));
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -43,5 +59,5 @@ pub fn run() {
             extras::set_window_effect,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| log_line(&format!("ERROR: {e}")));
 }
