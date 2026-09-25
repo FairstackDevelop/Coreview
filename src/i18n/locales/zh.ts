@@ -355,6 +355,10 @@ const zh: Record<Key, string> = {
   "ov.gameNote": "适用于窗口化和无边框游戏。独占全屏模式下悬浮窗可能被遮挡。",
   "ov.frame": "帧时间",
 
+  "gpu.core": "核心频率",
+  "gpu.mem": "显存频率",
+  "cat.sensors": "所有传感器（原始数据）",
+
   "alert.temp": "温度过高：{label} 达到 {temp}°C",
   "err.generic": "出现问题",
 };

@@ -61,7 +61,7 @@ function Shell() {
   useEffect(() => {
     if (!settings.historyOn) return;
     const id = setInterval(() => {
-      const { latest, temps, power, smc } = liveRef.current;
+      const { latest, temps, power, smc, gpu } = liveRef.current;
       if (!latest) return;
       const maxOf = (pred: (g: string) => boolean) => {
         const v = temps.filter((x) => pred(x.group)).map((x) => x.celsius);
@@ -73,12 +73,12 @@ function Shell() {
         mem: latest.memTotal ? (latest.memUsed / latest.memTotal) * 100 : undefined,
         freq: latest.cpuMhz || undefined,
         tCpu: maxOf((g) => g === "chip"),
-        tGpu: maxOf((g) => g === "gpu"),
+        tGpu: gpu?.temp ?? maxOf((g) => g === "gpu"),
         tMax: maxOf((g) => g !== "battery"),
         power: power?.watts ?? undefined,
         cpuW: power?.cpuWatts ?? undefined,
-        gpuW: power?.gpuWatts ?? undefined,
-        gpu: power?.gpuLoad ?? undefined,
+        gpuW: gpu?.power ?? power?.gpuWatts ?? undefined,
+        gpu: gpu?.load ?? power?.gpuLoad ?? undefined,
         fan: smc && smc.fans.length ? Math.max(...smc.fans.map((f) => f.rpm)) : undefined,
         rx: latest.netRx,
         tx: latest.netTx,

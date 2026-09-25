@@ -721,3 +721,7 @@ html[data-overlay] .ov-root { height: 100%; }
 .stat-line em { font-style: normal; }
 .stat-line small { color: var(--muted); }
 .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+.gpu-block { margin-bottom: 16px; }
+.gpu-card { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; }
+.gpu-rows { min-width: 0; }

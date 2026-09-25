@@ -58,11 +58,7 @@ namespace CoreviewSensors
 
         private static bool Wanted(SensorType type)
         {
-            return type == SensorType.Temperature
-                || type == SensorType.Fan
-                || type == SensorType.Power
-                || type == SensorType.Load
-                || type == SensorType.Control;
+            return true;
         }
 
         private static void Collect(IHardware hardware, StringBuilder sb, ref bool first)

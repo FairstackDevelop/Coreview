@@ -4,7 +4,7 @@ import { bytes, mhz, pct, rate } from "../format";
 import type { Key } from "../i18n";
 import { groupOrder, tone } from "../sensors";
 import { useSettings } from "../settings";
-import { Bar, Card, Chart, Icon, PageHead, Ring } from "../ui";
+import { Bar, Card, Chart, Icon, PageHead, Ring, Row } from "../ui";
 
 function TempGroups({ temps }: { temps: MergedTemp[] }) {
   const { t } = useSettings();
@@ -58,7 +58,7 @@ function TempGroups({ temps }: { temps: MergedTemp[] }) {
 
 export default function Monitor() {
   const { t, locale } = useSettings();
-  const { latest: s, temps, history, power, paused, setPaused } = useLive();
+  const { latest: s, temps, history, power, gpu, paused, setPaused } = useLive();
 
   if (!s) return <div className="empty">{t("common.loading")}</div>;
 
@@ -93,6 +93,27 @@ export default function Monitor() {
           <small className="muted">{s.load.map((l) => l.toFixed(2)).join(" · ")}</small>
         </Card>
       </div>
+
+      {gpu && (
+        <Card title={gpu.name || t("sum.graphics")} className="gpu-block">
+          <div className="gpu-card">
+            <Ring value={gpu.load ?? 0} label={gpu.load !== null ? pct(gpu.load, locale) : "—"} sub={t("mon.gpu")} size={120} />
+            <div className="gpu-rows">
+              <Row label={t("ov.gpuTemp")} value={gpu.temp !== null ? `${gpu.temp.toFixed(0)}°C` : undefined} />
+              <Row label={t("fan.speed")} value={gpu.fanRpm ? `${Math.round(gpu.fanRpm)} RPM` : gpu.fanPercent !== null ? `${Math.round(gpu.fanPercent)}%` : undefined} />
+              <Row label={t("pow.title")} value={gpu.power !== null ? `${gpu.power.toFixed(1)} W` : undefined} />
+              <Row label={t("gpu.core")} value={gpu.coreMhz ? mhz(Math.round(gpu.coreMhz), locale) : undefined} />
+              <Row label={t("gpu.mem")} value={gpu.memMhz ? mhz(Math.round(gpu.memMhz), locale) : undefined} />
+              {gpu.memTotal ? (
+                <>
+                  <Row label={t("sum.vram")} value={`${Math.round(gpu.memUsed ?? 0)} / ${Math.round(gpu.memTotal)} MB`} />
+                  <Bar value={((gpu.memUsed ?? 0) / gpu.memTotal) * 100} />
+                </>
+              ) : null}
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid">
         <Card title={t("mon.cpu")} right={<b className="accent">{pct(s.cpuTotal, locale)}</b>}>

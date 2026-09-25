@@ -8,6 +8,7 @@ pub struct Fan {
     pub min: f64,
     pub max: f64,
     pub name: String,
+    pub percent: Option<f64>,
 }
 
 #[derive(Serialize, Default, Clone)]

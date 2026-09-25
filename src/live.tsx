@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
-import { api, type LiveStats, type PowerStats, type SmcSensors } from "./api";
+import { api, type GpuStats, type LiveStats, type PowerStats, type SmcSensors } from "./api";
 import { groupOf, smcGroup, type Group } from "./sensors";
 import { useSettings } from "./settings";
 
@@ -33,7 +33,10 @@ export interface MergedTemp {
   group: Group;
 }
 
+export type GpuView = GpuStats;
+
 interface LiveCtx {
+  gpu: GpuView | null;
   latest: LiveStats | null;
   temps: MergedTemp[];
   history: Point[];
@@ -72,6 +75,7 @@ export function LiveProvider({ children, alerts = true }: { children: ReactNode;
   const [history, setHistory] = useState<Point[]>([]);
   const [power, setPower] = useState<PowerStats | null>(null);
   const [smc, setSmc] = useState<SmcSensors | null>(null);
+  const [gpus, setGpus] = useState<GpuStats[]>([]);
   const [fanHist, setFanHist] = useState<Record<number, number[]>>({});
   const [sensors, setSensors] = useState<Record<string, SensorStat>>({});
   const [paused, setPaused] = useState(false);
@@ -79,6 +83,7 @@ export function LiveProvider({ children, alerts = true }: { children: ReactNode;
   const lastAlert = useRef(0);
   const powerRef = useRef<PowerStats | null>(null);
   const smcRef = useRef<SmcSensors | null>(null);
+  const gpuLoadRef = useRef<number | null>(null);
   const cfg = useRef({ settings, t });
   cfg.current = { settings, t };
 
@@ -95,6 +100,12 @@ export function LiveProvider({ children, alerts = true }: { children: ReactNode;
         powerRef.current = p;
         setPower(p);
         next = p?.pollMs ?? 5000;
+      } catch {}
+      try {
+        const g = await api.gpus();
+        if (!alive) return;
+        setGpus(g);
+        gpuLoadRef.current = g[0]?.load ?? null;
       } catch {}
       try {
         const s = await api.smc();
@@ -145,7 +156,7 @@ export function LiveProvider({ children, alerts = true }: { children: ReactNode;
               temp: hottest.celsius,
               freq: s.cpuMhz,
               power: powerRef.current?.watts ?? null,
-              gpu: powerRef.current?.gpuLoad ?? null,
+              gpu: gpuLoadRef.current ?? powerRef.current?.gpuLoad ?? null,
             },
           ].slice(-cfg.current.settings.history),
         );
@@ -171,6 +182,25 @@ export function LiveProvider({ children, alerts = true }: { children: ReactNode;
     };
   }, [paused, settings.interval]);
 
+  const gpu = useMemo<GpuView | null>(() => {
+    if (gpus.length > 0) return gpus[0];
+    const gpuTemps = (smc?.temps ?? []).filter((x) => smcGroup(x.group) === "gpu").map((x) => x.celsius);
+    const view: GpuView = {
+      name: "",
+      load: power?.gpuLoad ?? null,
+      temp: gpuTemps.length ? gpuTemps.reduce((a, b) => a + b, 0) / gpuTemps.length : null,
+      hotspot: gpuTemps.length ? Math.max(...gpuTemps) : null,
+      fanRpm: null,
+      fanPercent: null,
+      power: power?.gpuWatts ?? null,
+      coreMhz: null,
+      memMhz: null,
+      memUsed: null,
+      memTotal: null,
+    };
+    return view.load !== null || view.temp !== null || view.power !== null ? view : null;
+  }, [gpus, smc, power]);
+
   const temps = useMemo<MergedTemp[]>(
     () => [
       ...(latest?.temps ?? []).map((x) => ({ label: x.label, celsius: x.celsius, group: groupOf(x.label) })),
@@ -179,5 +209,5 @@ export function LiveProvider({ children, alerts = true }: { children: ReactNode;
     [latest, smc],
   );
 
-  return <Ctx.Provider value={{ latest, temps, history, power, smc, fanHist, sensors, resetSensors, paused, setPaused, toast }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ gpu, latest, temps, history, power, smc, fanHist, sensors, resetSensors, paused, setPaused, toast }}>{children}</Ctx.Provider>;
 }

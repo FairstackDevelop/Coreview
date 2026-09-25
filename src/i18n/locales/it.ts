@@ -355,6 +355,10 @@ const it: Record<Key, string> = {
   "ov.gameNote": "Funziona sopra i giochi in finestra e senza bordi. La modalità a schermo intero esclusivo può nascondere l’overlay.",
   "ov.frame": "Tempo di frame",
 
+  "gpu.core": "Frequenza core",
+  "gpu.mem": "Frequenza memoria",
+  "cat.sensors": "Tutti i sensori (dati grezzi)",
+
   "alert.temp": "Temperatura elevata: {label} a {temp}°C",
   "err.generic": "Qualcosa è andato storto",
 };

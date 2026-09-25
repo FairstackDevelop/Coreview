@@ -3,6 +3,8 @@ mod cpuperf;
 mod details;
 mod extras;
 mod fps;
+#[cfg(windows)]
+mod gpuperf;
 mod history;
 mod hw;
 #[cfg(target_os = "macos")]
@@ -79,6 +81,7 @@ pub fn run() {
             power::power_stats,
             smc::smc_sensors,
             winsensors::sensor_status,
+            winsensors::gpu_stats,
             winsensors::install_sensor_driver,
             stress::stress_start,
             stress::stress_stop,

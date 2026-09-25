@@ -353,6 +353,10 @@ const en = {
   "ov.gameNote": "Works over windowed and borderless games. Exclusive fullscreen mode may hide the overlay.",
   "ov.frame": "Frame time",
 
+  "gpu.core": "Core clock",
+  "gpu.mem": "Memory clock",
+  "cat.sensors": "All sensors (raw)",
+
   "alert.temp": "High temperature: {label} is at {temp}°C",
   "err.generic": "Something went wrong",
 } as const;

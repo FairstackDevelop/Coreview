@@ -355,6 +355,10 @@ const cs: Record<Key, string> = {
   "ov.gameNote": "Funguje nad hrami v okně i bez okraje. Exkluzivní celá obrazovka může vrstvu skrýt.",
   "ov.frame": "Čas snímku",
 
+  "gpu.core": "Frekvence jádra",
+  "gpu.mem": "Frekvence paměti",
+  "cat.sensors": "Všechny senzory (surová data)",
+
   "alert.temp": "Vysoká teplota: {label} má {temp} °C",
   "err.generic": "Něco se pokazilo",
 };

@@ -20,7 +20,7 @@ const level = (v: number, warn: number, danger: number) => (v >= danger ? "dange
 
 export default function OverlayView() {
   const { t, locale } = useSettings();
-  const { latest, temps, power, smc } = useLive();
+  const { latest, temps, power, gpu, smc } = useLive();
   const [cfg] = useOverlayConfig();
   const [locked, setLocked] = useState(true);
   const [fps, setFps] = useState<FpsStats | null>(null);
@@ -64,8 +64,10 @@ export default function OverlayView() {
     if (s.cpuLoad && latest) out.push({ key: "cl", label: "CPU", value: `${Math.round(latest.cpuTotal)}%`, level: level(latest.cpuTotal, 80, 95) });
     if (s.cpuTemp && maxOf("chip") > 0) out.push({ key: "ct", label: t("ov.cpuTemp"), value: `${Math.round(maxOf("chip"))}°C`, level: level(maxOf("chip"), 80, 92) });
     if (s.cpuMhz && latest && latest.cpuMhz > 0) out.push({ key: "cm", label: t("mon.freq"), value: mhz(latest.cpuMhz, locale) });
-    if (s.gpuLoad && power?.gpuLoad != null) out.push({ key: "gl", label: "GPU", value: `${Math.round(power.gpuLoad)}%`, level: level(power.gpuLoad, 90, 99) });
-    if (s.gpuTemp && maxOf("gpu") > 0) out.push({ key: "gt", label: t("ov.gpuTemp"), value: `${Math.round(maxOf("gpu"))}°C`, level: level(maxOf("gpu"), 80, 90) });
+    const gpuLoad = gpu?.load ?? power?.gpuLoad ?? null;
+    const gpuTemp = gpu?.temp ?? (maxOf("gpu") || null);
+    if (s.gpuLoad && gpuLoad !== null) out.push({ key: "gl", label: "GPU", value: `${Math.round(gpuLoad)}%`, level: level(gpuLoad, 90, 99) });
+    if (s.gpuTemp && gpuTemp) out.push({ key: "gt", label: t("ov.gpuTemp"), value: `${Math.round(gpuTemp)}°C`, level: level(gpuTemp, 80, 90) });
     if (s.ram && latest && latest.memTotal) out.push({ key: "ram", label: "RAM", value: `${Math.round((latest.memUsed / latest.memTotal) * 100)}%`, level: level((latest.memUsed / latest.memTotal) * 100, 85, 95) });
     if (s.power) {
       const w = power?.watts ?? ((power?.cpuWatts ?? 0) + (power?.gpuWatts ?? 0) || null);
@@ -73,7 +75,7 @@ export default function OverlayView() {
     }
     if (s.fan && smc && smc.fans.length) out.push({ key: "fan", label: t("fan.speed"), value: `${Math.round(Math.max(...smc.fans.map((f) => f.rpm)))} RPM` });
     return out;
-  }, [cfg.show, latest, temps, power, smc, fps, t, locale]);
+  }, [cfg.show, latest, temps, power, gpu, smc, fps, t, locale]);
 
   useEffect(() => {
     if (!box.current) return;

@@ -355,6 +355,10 @@ const pl: Record<Key, string> = {
   "ov.gameNote": "Działa nad grami w oknie i bez ramki. Tryb pełnoekranowy wyłączny może ukryć nakładkę.",
   "ov.frame": "Czas klatki",
 
+  "gpu.core": "Taktowanie rdzenia",
+  "gpu.mem": "Taktowanie pamięci",
+  "cat.sensors": "Wszystkie czujniki (surowe dane)",
+
   "alert.temp": "Wysoka temperatura: {label} — {temp}°C",
   "err.generic": "Coś poszło nie tak",
 };

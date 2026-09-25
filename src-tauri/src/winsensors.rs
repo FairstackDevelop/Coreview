@@ -3,6 +3,7 @@
 use crate::smc::{Fan, SmcSensors, SmcTemp};
 use crate::util::{run, run_res};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -45,6 +46,24 @@ struct Snapshot {
 
 static SNAP: Mutex<Snapshot> = Mutex::new(Snapshot { sensors: Vec::new(), admin: false, error: String::new(), running: false, found: false });
 static STARTED: OnceLock<()> = OnceLock::new();
+static NVIDIA: Mutex<Vec<GpuStats>> = Mutex::new(Vec::new());
+static ENGINE_LOAD: Mutex<Option<f64>> = Mutex::new(None);
+
+#[derive(Serialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GpuStats {
+    pub name: String,
+    pub load: Option<f64>,
+    pub temp: Option<f64>,
+    pub hotspot: Option<f64>,
+    pub fan_rpm: Option<f64>,
+    pub fan_percent: Option<f64>,
+    pub power: Option<f64>,
+    pub core_mhz: Option<f64>,
+    pub mem_mhz: Option<f64>,
+    pub mem_used: Option<f64>,
+    pub mem_total: Option<f64>,
+}
 
 fn update(f: impl FnOnce(&mut Snapshot)) {
     if let Ok(mut s) = SNAP.lock() {
@@ -119,6 +138,7 @@ pub fn ensure_started(app: &tauri::AppHandle) {
     }
     let resource = app.path().resource_dir().ok();
     std::thread::spawn(move || supervise(resource));
+    std::thread::spawn(gpu_fallbacks);
 }
 
 fn group_of(hardware: &str) -> &'static str {
@@ -158,14 +178,33 @@ pub fn to_smc() -> SmcSensors {
                     hw: s.hw.clone(),
                 });
             }
-            "Fan" => out.fans.push(Fan {
+            "Fan" if value > 0.0 => out.fans.push(Fan {
                 id: out.fans.len() as u32,
                 rpm: value,
                 min: 0.0,
                 max: s.max.unwrap_or(0.0),
-                name: if s.hw.is_empty() || s.name.to_lowercase().contains("fan") && group_of(&s.ht) == "gpu" { s.name.clone() } else { s.name.clone() },
+                name: if group_of(&s.ht) == "gpu" { format!("{} · {}", s.hw, s.name) } else { s.name.clone() },
+                percent: None,
             }),
             _ => {}
+        }
+    }
+    let with_rpm: Vec<&str> = snap.sensors.iter().filter(|s| s.st == "Fan" && s.value.unwrap_or(0.0) > 0.0).map(|s| s.hw.as_str()).collect();
+    for s in snap.sensors.iter().filter(|s| s.st == "Control" && s.name.to_lowercase().contains("fan") && !with_rpm.contains(&s.hw.as_str())) {
+        if let Some(v) = s.value {
+            out.fans.push(Fan {
+                id: out.fans.len() as u32,
+                name: if group_of(&s.ht) == "gpu" { format!("{} · {}", s.hw, s.name) } else { s.name.clone() },
+                percent: Some(v),
+                ..Default::default()
+            });
+        }
+    }
+    if !snap.sensors.iter().any(|s| s.ht.starts_with("Gpu") && (s.st == "Fan" || s.st == "Control")) {
+        for g in NVIDIA.lock().map(|n| n.clone()).unwrap_or_default() {
+            if let Some(p) = g.fan_percent {
+                out.fans.push(Fan { id: out.fans.len() as u32, name: format!("{} · GPU", g.name), percent: Some(p), ..Default::default() });
+            }
         }
     }
     out
@@ -182,14 +221,15 @@ pub fn to_power() -> WinPower {
     let snap = SNAP.lock().map(|s| s.clone()).unwrap_or_default();
     let mut out = WinPower::default();
     for s in &snap.sensors {
-        let Some(v) = s.value else { continue };
-        let gpu = s.ht.starts_with("Gpu");
-        match (s.st.as_str(), s.ht.as_str()) {
-            ("Power", "Cpu") if s.name.contains("Package") => out.cpu = out.cpu.or(Some(v)),
-            ("Power", _) if gpu && (s.name.contains("Package") || s.name == "GPU Power") => out.gpu = out.gpu.or(Some(v)),
-            ("Load", _) if gpu && s.name == "GPU Core" => out.gpu_load = out.gpu_load.or(Some(v)),
-            _ => {}
+        if let (Some(v), "Power", "Cpu") = (s.value, s.st.as_str(), s.ht.as_str()) {
+            if s.name.contains("Package") {
+                out.cpu = out.cpu.or(Some(v));
+            }
         }
+    }
+    if let Some(g) = gpus().first() {
+        out.gpu = g.power;
+        out.gpu_load = g.load;
     }
     out
 }
@@ -240,4 +280,162 @@ pub async fn install_sensor_driver() -> Result<String, String> {
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+fn number(text: &str) -> Option<f64> {
+    text.trim().parse::<f64>().ok()
+}
+
+fn nvidia_smi() -> Option<PathBuf> {
+    let mut list = vec![PathBuf::from("nvidia-smi.exe")];
+    if let Ok(root) = std::env::var("SystemRoot") {
+        list.push(PathBuf::from(&root).join("System32").join("nvidia-smi.exe"));
+    }
+    if let Ok(pf) = std::env::var("ProgramFiles") {
+        list.push(PathBuf::from(pf).join("NVIDIA Corporation").join("NVSMI").join("nvidia-smi.exe"));
+    }
+    list.into_iter().find(|p| run(&p.to_string_lossy(), &["--version"]).is_some())
+}
+
+fn read_nvidia(exe: &Path) -> Vec<GpuStats> {
+    let query = "name,utilization.gpu,temperature.gpu,fan.speed,power.draw,clocks.gr,clocks.mem,memory.used,memory.total";
+    let Some(text) = run(&exe.to_string_lossy(), &[&format!("--query-gpu={query}"), "--format=csv,noheader,nounits"]) else {
+        return Vec::new();
+    };
+    text.lines()
+        .filter_map(|line| {
+            let f: Vec<&str> = line.split(',').map(|c| c.trim()).collect();
+            (f.len() >= 9).then(|| GpuStats {
+                name: f[0].to_string(),
+                load: number(f[1]),
+                temp: number(f[2]),
+                fan_percent: number(f[3]),
+                power: number(f[4]),
+                core_mhz: number(f[5]),
+                mem_mhz: number(f[6]),
+                mem_used: number(f[7]),
+                mem_total: number(f[8]),
+                ..Default::default()
+            })
+        })
+        .collect()
+}
+
+fn gpu_fallbacks() {
+    let smi = nvidia_smi();
+    #[cfg(windows)]
+    let mut engines = crate::gpuperf::GpuEngines::new();
+    loop {
+        if let Some(exe) = &smi {
+            let list = read_nvidia(exe);
+            if let Ok(mut n) = NVIDIA.lock() {
+                *n = list;
+            }
+        }
+        #[cfg(windows)]
+        if let Some(e) = engines.as_mut() {
+            let value = e.read();
+            if let Ok(mut l) = ENGINE_LOAD.lock() {
+                *l = value;
+            }
+        }
+        std::thread::sleep(Duration::from_millis(1500));
+    }
+}
+
+fn pick<'a>(list: &'a [&Sensor], st: &str, names: &[&str]) -> Option<&'a Sensor> {
+    for n in names {
+        if let Some(s) = list.iter().find(|s| s.st == st && s.name.eq_ignore_ascii_case(n) && s.value.is_some()) {
+            return Some(*s);
+        }
+    }
+    None
+}
+
+pub fn gpus() -> Vec<GpuStats> {
+    let snap = SNAP.lock().map(|s| s.clone()).unwrap_or_default();
+    let mut groups: BTreeMap<String, Vec<&Sensor>> = BTreeMap::new();
+    for s in snap.sensors.iter().filter(|s| s.ht.starts_with("Gpu")) {
+        groups.entry(s.hw.clone()).or_default().push(s);
+    }
+    let nvidia = NVIDIA.lock().map(|n| n.clone()).unwrap_or_default();
+    let engine = ENGINE_LOAD.lock().ok().and_then(|l| *l);
+
+    let mut out: Vec<GpuStats> = groups
+        .iter()
+        .map(|(name, list)| {
+            let val = |st: &str, names: &[&str]| pick(list, st, names).and_then(|s| s.value);
+            let any = |st: &str| list.iter().filter(|s| s.st == st).find_map(|s| s.value);
+            let mut g = GpuStats {
+                name: name.clone(),
+                load: val("Load", &["GPU Core", "D3D 3D", "GPU Core Load"]).or_else(|| list.iter().filter(|s| s.st == "Load" && (s.name.contains("3D") || s.name.contains("Core"))).find_map(|s| s.value)),
+                temp: val("Temperature", &["GPU Core", "GPU Temperature"]).or_else(|| any("Temperature")),
+                hotspot: val("Temperature", &["GPU Hot Spot", "GPU Hotspot"]),
+                fan_rpm: list.iter().filter(|s| s.st == "Fan").find_map(|s| s.value),
+                fan_percent: list.iter().filter(|s| s.st == "Control" && s.name.to_lowercase().contains("fan")).find_map(|s| s.value),
+                power: val("Power", &["GPU Package", "GPU Power", "GPU Total"]).or_else(|| any("Power")),
+                core_mhz: val("Clock", &["GPU Core"]),
+                mem_mhz: val("Clock", &["GPU Memory"]),
+                mem_used: val("SmallData", &["GPU Memory Used", "D3D Dedicated Memory Used"]),
+                mem_total: val("SmallData", &["GPU Memory Total", "D3D Dedicated Memory Total"]),
+            };
+            if let Some(n) = nvidia.iter().find(|n| name.contains(&n.name) || n.name.contains(name.as_str())).or_else(|| (nvidia.len() == 1 && list.iter().any(|s| s.ht == "GpuNvidia")).then(|| &nvidia[0])) {
+                g.load = n.load.or(g.load);
+                g.temp = g.temp.or(n.temp);
+                g.fan_percent = g.fan_percent.or(n.fan_percent);
+                g.power = g.power.or(n.power);
+                g.core_mhz = g.core_mhz.or(n.core_mhz);
+                g.mem_mhz = g.mem_mhz.or(n.mem_mhz);
+                g.mem_used = g.mem_used.or(n.mem_used);
+                g.mem_total = g.mem_total.or(n.mem_total);
+            }
+            g
+        })
+        .collect();
+
+    if out.is_empty() {
+        out = nvidia.clone();
+    }
+    if out.is_empty() && engine.is_some() {
+        out.push(GpuStats::default());
+    }
+    if let (Some(first), Some(load)) = (out.first_mut(), engine) {
+        if first.load.map_or(true, |l| l <= 0.0) {
+            first.load = Some(load);
+        }
+    }
+    out
+}
+
+#[tauri::command]
+pub async fn gpu_stats(app: tauri::AppHandle) -> Vec<GpuStats> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if cfg!(windows) {
+            ensure_started(&app);
+        }
+        gpus()
+    })
+    .await
+    .unwrap_or_default()
+}
+
+pub fn raw_sensors() -> Vec<(String, Vec<(String, String)>)> {
+    let snap = SNAP.lock().map(|s| s.clone()).unwrap_or_default();
+    let mut groups: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
+    for s in &snap.sensors {
+        let Some(v) = s.value else { continue };
+        let unit = match s.st.as_str() {
+            "Temperature" => " °C",
+            "Fan" => " RPM",
+            "Power" => " W",
+            "Voltage" => " V",
+            "Clock" => " MHz",
+            "Load" | "Control" | "Level" => " %",
+            "SmallData" => " MB",
+            "Data" => " GB",
+            _ => "",
+        };
+        groups.entry(format!("{} ({})", s.hw, s.ht)).or_default().push((format!("{} · {}", s.st, s.name), format!("{v:.2}{unit}")));
+    }
+    groups.into_iter().collect()
 }

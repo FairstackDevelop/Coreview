@@ -355,6 +355,10 @@ const es: Record<Key, string> = {
   "ov.gameNote": "Funciona sobre juegos en ventana y sin bordes. El pantalla completa exclusiva puede ocultar la superposición.",
   "ov.frame": "Tiempo de fotograma",
 
+  "gpu.core": "Frecuencia del núcleo",
+  "gpu.mem": "Frecuencia de memoria",
+  "cat.sensors": "Todos los sensores (sin procesar)",
+
   "alert.temp": "Temperatura alta: {label} a {temp} °C",
   "err.generic": "Algo salió mal",
 };

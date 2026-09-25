@@ -76,7 +76,7 @@ pub fn categories() -> Vec<&'static str> {
     if cfg!(target_os = "macos") {
         vec!["computer", "cpu", "memory", "graphics", "storage", "network", "wifi", "usb", "bluetooth", "audio", "power", "printers", "cameras", "software", "drivers", "services", "env"]
     } else if cfg!(windows) {
-        vec!["computer", "cpu", "memory", "graphics", "storage", "network", "wifi", "usb", "bluetooth", "audio", "power", "printers", "cameras", "pci", "software", "drivers", "services", "env"]
+        vec!["computer", "cpu", "memory", "graphics", "storage", "network", "wifi", "usb", "bluetooth", "audio", "power", "printers", "cameras", "pci", "sensors", "software", "drivers", "services", "env"]
     } else {
         vec!["computer", "cpu", "env"]
     }
@@ -203,6 +203,12 @@ fn win_detail(id: &str) -> Vec<Node> {
             ps("Get-CimInstance Win32_PnPSignedDriver | Where-Object DeviceName | Select-Object DeviceName,Manufacturer,DriverVersion,DriverDate,DriverProviderName,InfName | Sort-Object DeviceName"),
         )],
         "services" => vec![("Services", ps("Get-CimInstance Win32_Service | Select-Object Name,DisplayName,State,StartMode,PathName,StartName | Sort-Object DisplayName"))],
+        "sensors" => {
+            return crate::winsensors::raw_sensors()
+                .into_iter()
+                .map(|(name, props)| Node { name, props, children: Vec::new() })
+                .collect();
+        }
         "env" => return env_nodes(),
         _ => Vec::new(),
     };

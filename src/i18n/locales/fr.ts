@@ -355,6 +355,10 @@ const fr: Record<Key, string> = {
   "ov.gameNote": "Fonctionne au-dessus des jeux en fenêtre et sans bordure. Le plein écran exclusif peut masquer la surimpression.",
   "ov.frame": "Temps de frame",
 
+  "gpu.core": "Fréquence du cœur",
+  "gpu.mem": "Fréquence mémoire",
+  "cat.sensors": "Tous les capteurs (bruts)",
+
   "alert.temp": "Température élevée : {label} à {temp} °C",
   "err.generic": "Une erreur est survenue",
 };

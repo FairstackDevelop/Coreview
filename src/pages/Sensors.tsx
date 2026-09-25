@@ -78,7 +78,7 @@ function SensorAccess() {
 
 export default function Sensors() {
   const { t, locale } = useSettings();
-  const { history, power, smc, fanHist, sensors, resetSensors } = useLive();
+  const { history, power, gpu, smc, fanHist, sensors, resetSensors } = useLive();
   const [query, setQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
 
@@ -118,8 +118,9 @@ export default function Sensors() {
     : [];
   const partMax = Math.max(0.1, ...parts.map((x) => x[1]));
   const battW = power?.batteryWatts ?? null;
+  const gpuLoad = gpu?.load ?? power?.gpuLoad ?? null;
   const hasBattery = !!power && (power.percent !== null || power.batteryWatts !== null);
-  const hasPower = !!power && (power.watts !== null || parts.length > 0 || power.gpuLoad !== null || hasBattery);
+  const hasPower = !!power && (power.watts !== null || parts.length > 0 || gpuLoad !== null || hasBattery);
 
   return (
     <>
@@ -160,8 +161,8 @@ export default function Sensors() {
             </Card>
           )}
 
-          {power.gpuLoad !== null && (
-            <Card title={t("mon.gpu")} right={<b className="accent">{pct(power.gpuLoad, locale)}</b>}>
+          {gpuLoad !== null && (
+            <Card title={t("mon.gpu")} right={<b className="accent">{pct(gpuLoad, locale)}</b>}>
               <Chart data={history} max={100} series={[{ key: "gpu", color: "var(--c2)", name: t("mon.gpu") }]} format={(v) => pct(v, locale)} height={100} />
             </Card>
           )}
@@ -216,8 +217,9 @@ export default function Sensors() {
       {smc && smc.fans.length > 0 ? (
         <div className="grid">
           {smc.fans.map((f) => (
-            <Card key={f.id} title={f.name || t("fan.name", { n: f.id + 1 })} right={<b className="accent">{Math.round(f.rpm)} RPM</b>}>
-              {f.max > 0 && <Bar value={(f.rpm / f.max) * 100} />}
+            <Card key={f.id} title={f.name || t("fan.name", { n: f.id + 1 })} right={<b className="accent">{f.rpm > 0 || f.percent === null ? `${Math.round(f.rpm)} RPM` : `${Math.round(f.percent)}%`}</b>}>
+              {f.rpm > 0 && f.max > 0 && <Bar value={(f.rpm / f.max) * 100} />}
+              {f.rpm === 0 && f.percent !== null && <Bar value={f.percent} />}
               <Spark data={fanHist[f.id] ?? []} color="var(--c3)" />
               {f.max > 0 && (
                 <div className="row">

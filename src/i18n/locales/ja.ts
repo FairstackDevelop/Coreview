@@ -355,6 +355,10 @@ const ja: Record<Key, string> = {
   "ov.gameNote": "ウィンドウモードやボーダーレスのゲーム上で動作します。排他的フルスクリーンでは表示されない場合があります。",
   "ov.frame": "フレームタイム",
 
+  "gpu.core": "コアクロック",
+  "gpu.mem": "メモリクロック",
+  "cat.sensors": "すべてのセンサー（生データ）",
+
   "alert.temp": "高温を検出: {label} が {temp}°C です",
   "err.generic": "問題が発生しました",
 };

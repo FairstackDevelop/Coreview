@@ -78,10 +78,10 @@ export default function Stress() {
   const tempsRef = useRef(liveTemps);
   tempsRef.current = liveTemps;
   const powerRef = useRef<number | null>(null);
-  const { power } = useLive();
+  const { power, gpu } = useLive();
   powerRef.current = power?.watts ?? null;
   const gpuRef = useRef<number | null>(null);
-  gpuRef.current = power?.gpuLoad ?? null;
+  gpuRef.current = gpu?.load ?? power?.gpuLoad ?? null;
   const wasRunning = useRef(false);
   const samplesRef = useRef(samples);
   samplesRef.current = samples;

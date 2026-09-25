@@ -355,6 +355,10 @@ const tr: Record<Key, string> = {
   "ov.gameNote": "Pencereli ve çerçevesiz oyunların üzerinde çalışır. Özel tam ekran modu yer paylaşımını gizleyebilir.",
   "ov.frame": "Kare süresi",
 
+  "gpu.core": "Çekirdek hızı",
+  "gpu.mem": "Bellek hızı",
+  "cat.sensors": "Tüm sensörler (ham veri)",
+
   "alert.temp": "Yüksek sıcaklık: {label} {temp}°C",
   "err.generic": "Bir şeyler ters gitti",
 };

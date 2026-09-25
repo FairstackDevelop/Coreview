@@ -355,6 +355,10 @@ const ko: Record<Key, string> = {
   "ov.gameNote": "창 모드와 테두리 없는 게임 위에서 작동합니다. 독점 전체 화면에서는 오버레이가 가려질 수 있습니다.",
   "ov.frame": "프레임 시간",
 
+  "gpu.core": "코어 클럭",
+  "gpu.mem": "메모리 클럭",
+  "cat.sensors": "모든 센서(원시 데이터)",
+
   "alert.temp": "고온 감지: {label} {temp}°C",
   "err.generic": "문제가 발생했습니다",
 };
