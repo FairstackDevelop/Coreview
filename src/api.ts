@@ -87,6 +87,11 @@ export interface StressStatus {
   error: string;
 }
 
+export interface FpsStats { fps: number; low1: number; frameMs: number; app: string; pid: number; history: number[] }
+export interface FpsStatus { supported: boolean; running: boolean; available: boolean; error: string }
+export type HistorySample = { t: number } & Record<string, number>;
+export interface HistoryData { points: HistorySample[]; marks: { t: number; mark: string }[] }
+
 export interface ProcInfo { pid: number; name: string; cpu: number; memory: number; status: string; runTime: number; exe: string }
 export interface StartupItem {
   id: string;
@@ -119,6 +124,19 @@ export const api = {
   stressStart: (kind: string, threads: number, seconds: number) => invoke<void>("stress_start", { kind, threads, seconds }),
   stressStop: (reason?: string) => invoke<void>("stress_stop", { reason }),
   stressStatus: () => invoke<StressStatus>("stress_status"),
+  historyAppend: (sample: Record<string, number | string>) => invoke<void>("history_append", { sample }),
+  historyQuery: (from: number, to: number, maxPoints: number) => invoke<HistoryData>("history_query", { from, to, maxPoints }),
+  historyCsv: (from: number, to: number) => invoke<string>("history_csv", { from, to }),
+  historyPrune: (keepDays: number, now: number) => invoke<void>("history_prune", { keepDays, now }),
+  historyClear: () => invoke<void>("history_clear"),
+  overlayShow: (corner: string, x: number | null, y: number | null, locked: boolean) => invoke<void>("overlay_show", { corner, x, y, locked }),
+  overlayHide: () => invoke<void>("overlay_hide"),
+  overlayLock: (locked: boolean) => invoke<void>("overlay_lock", { locked }),
+  overlayResize: (width: number, height: number) => invoke<void>("overlay_resize", { width, height }),
+  overlaySetCustom: (x: number, y: number) => invoke<void>("overlay_set_custom", { x, y }),
+  fpsEnable: (enabled: boolean) => invoke<FpsStatus>("fps_enable", { enabled }),
+  fpsStatus: () => invoke<FpsStatus>("fps_status"),
+  fpsStats: () => invoke<FpsStats | null>("fps_stats"),
   connections: () => invoke<Connection[]>("connections"),
   saveSnapshot: (name: string, data: HardwareInfo) => invoke<SnapshotMeta>("save_snapshot", { name, data: JSON.stringify(data) }),
   snapshots: () => invoke<SnapshotMeta[]>("list_snapshots"),

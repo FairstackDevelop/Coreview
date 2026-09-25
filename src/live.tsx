@@ -66,7 +66,7 @@ function mergeStats(prev: Record<string, SensorStat>, entries: [string, number][
   return next;
 }
 
-export function LiveProvider({ children }: { children: ReactNode }) {
+export function LiveProvider({ children, alerts = true }: { children: ReactNode; alerts?: boolean }) {
   const { settings, t } = useSettings();
   const [latest, setLatest] = useState<LiveStats | null>(null);
   const [history, setHistory] = useState<Point[]>([]);
@@ -150,7 +150,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
           ].slice(-cfg.current.settings.history),
         );
         const { settings: st, t: tr } = cfg.current;
-        if (st.alertOn && hottest.celsius >= st.alertTemp && Date.now() - lastAlert.current > 300_000) {
+        if (alerts && st.alertOn && hottest.celsius >= st.alertTemp && Date.now() - lastAlert.current > 300_000) {
           lastAlert.current = Date.now();
           const body = tr("alert.temp", { label: hottest.label, temp: Math.round(hottest.celsius) });
           setToast(body);

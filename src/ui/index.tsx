@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export function Card({ title, icon, right, children, className = "" }: { title?: string; icon?: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {
   return (
@@ -189,6 +189,8 @@ export function Icon({ name }: { name: string }) {
     sensors: "M14 14.8V4a2 2 0 10-4 0v10.8a4 4 0 104 0z",
     stress: "M13 2L4 14h7l-1 8 9-12h-7z",
     info: "M12 22a10 10 0 100-20 10 10 0 000 20zM12 16v-4M12 8h.01",
+    history: "M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8M3 3v5h5M12 7v5l4 2",
+    overlay: "M3 5h18v12H3zM8 21h8M12 17v4M7 10h4M7 13h7",
     details: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
     plus: "M12 5v14M5 12h14",
     monitor: "M3 12h4l3-8 4 16 3-8h4",
@@ -224,5 +226,46 @@ export function Spark({ data, color = "var(--accent)" }: { data: number[]; color
     <svg className="spark" viewBox="0 0 90 26">
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
+  );
+}
+
+export function TimeChart({
+  data,
+  series,
+  marks = [],
+  format,
+  showDate,
+  height = 190,
+}: {
+  data: object[];
+  series: { key: string; color: string; name: string }[];
+  marks?: { t: number; mark: string }[];
+  format: (v: number) => string;
+  showDate?: boolean;
+  height?: number;
+}) {
+  const tick = (v: number) =>
+    new Date(v).toLocaleString(undefined, showDate ? { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit" });
+  return (
+    <div style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+          <CartesianGrid stroke="var(--line)" vertical={false} />
+          <XAxis dataKey="t" type="number" scale="time" domain={["dataMin", "dataMax"]} tickFormatter={tick} stroke="var(--muted)" fontSize={11} tickLine={false} minTickGap={50} />
+          <YAxis stroke="var(--muted)" fontSize={11} tickLine={false} axisLine={false} width={46} tickFormatter={(v) => format(Number(v))} domain={["auto", "auto"]} />
+          <Tooltip
+            contentStyle={{ background: "var(--tooltip)", border: "1px solid var(--line)", borderRadius: 12, fontSize: 12 }}
+            labelFormatter={(v) => new Date(Number(v)).toLocaleString()}
+            formatter={(v, n) => [format(Number(v)), n]}
+          />
+          {marks.map((m) => (
+            <ReferenceLine key={m.t} x={m.t} stroke="var(--accent)" strokeDasharray="4 3" label={{ value: m.mark, fill: "var(--accent)", fontSize: 11, position: "insideTopLeft" }} />
+          ))}
+          {series.map((s) => (
+            <Line key={s.key} type="monotone" dataKey={s.key} name={s.name} stroke={s.color} strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

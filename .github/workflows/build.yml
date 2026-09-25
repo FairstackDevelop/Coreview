@@ -53,6 +53,16 @@ jobs:
         if: runner.os == 'Windows'
         run: dotnet publish sensors-helper/CoreviewSensors.csproj -c Release -o sensors-helper/out
 
+      - name: Download PresentMon (FPS counter)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo GameTechDev/PresentMon --pattern 'PresentMon-*-x64.exe' --dir sensors-helper/out --clobber
+          mv sensors-helper/out/PresentMon-*-x64.exe sensors-helper/out/PresentMon.exe
+
       - run: npm ci
 
       - run: npm run tauri build -- --target ${{ matrix.target }}

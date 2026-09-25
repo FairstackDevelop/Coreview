@@ -9,6 +9,8 @@ pub struct Shared {
     disks: Mutex<Disks>,
     comps: Mutex<Components>,
     last: Mutex<Instant>,
+    #[cfg(windows)]
+    perf: Mutex<Option<crate::cpuperf::CpuPerf>>,
 }
 
 #[derive(Clone)]
@@ -35,6 +37,8 @@ impl Shared {
             disks: Mutex::new(Disks::new_with_refreshed_list()),
             comps: Mutex::new(Components::new_with_refreshed_list()),
             last: Mutex::new(Instant::now()),
+            #[cfg(windows)]
+            perf: Mutex::new(crate::cpuperf::CpuPerf::new()),
         }
     }
 }
@@ -118,6 +122,11 @@ fn collect_live(state: &Shared) -> LiveStats {
         })
         .collect();
 
+    #[cfg(windows)]
+    let (util_override, mhz_override) = state.perf.lock().unwrap().as_ref().map(|p| p.read()).unwrap_or((None, None));
+    #[cfg(not(windows))]
+    let (util_override, mhz_override): (Option<f64>, Option<f64>) = (None, None);
+
     let cpus = sys.cpus();
     let mhz = if cpus.is_empty() { 0 } else { cpus.iter().map(|c| c.frequency()).sum::<u64>() / cpus.len() as u64 };
     let la = System::load_average();
@@ -127,9 +136,9 @@ fn collect_live(state: &Shared) -> LiveStats {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as u64)
             .unwrap_or(0),
-        cpu_total: sys.global_cpu_usage(),
+        cpu_total: util_override.map(|u| u.clamp(0.0, 100.0) as f32).unwrap_or_else(|| sys.global_cpu_usage()),
         cpu_cores: cpus.iter().map(|c| c.cpu_usage()).collect(),
-        cpu_mhz: mhz,
+        cpu_mhz: mhz_override.filter(|m| *m > 0.0).map(|m| m as u64).unwrap_or(mhz),
         mem_used: sys.used_memory(),
         mem_total: sys.total_memory(),
         swap_used: sys.used_swap(),

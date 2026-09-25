@@ -118,6 +118,8 @@ export default function Sensors() {
     : [];
   const partMax = Math.max(0.1, ...parts.map((x) => x[1]));
   const battW = power?.batteryWatts ?? null;
+  const hasBattery = !!power && (power.percent !== null || power.batteryWatts !== null);
+  const hasPower = !!power && (power.watts !== null || parts.length > 0 || power.gpuLoad !== null || hasBattery);
 
   return (
     <>
@@ -134,15 +136,17 @@ export default function Sensors() {
       <SensorAccess />
 
       <h2 className="section first">{t("pow.title")}</h2>
-      {!power ? (
+      {!hasPower || !power ? (
         <Card>
           <p className="muted">{t("pow.unavailable")}</p>
         </Card>
       ) : (
         <div className="grid">
-          <Card title={t("pow.system")} right={<b className="accent">{num(power.watts, "W")}</b>}>
-            <Chart data={history} series={[{ key: "power", color: "var(--c4)", name: t("pow.system") }]} format={(v) => num(v, "W")} height={120} />
-          </Card>
+          {power.watts !== null && (
+            <Card title={t("pow.system")} right={<b className="accent">{num(power.watts, "W")}</b>}>
+              <Chart data={history} series={[{ key: "power", color: "var(--c4)", name: t("pow.system") }]} format={(v) => num(v, "W")} height={120} />
+            </Card>
+          )}
 
           {parts.length > 0 && (
             <Card title={t("pow.title")}>
@@ -162,6 +166,8 @@ export default function Sensors() {
             </Card>
           )}
 
+          {hasBattery && (
+            <>
           <Card title={t("pow.battery")} right={power.percent !== null ? <b className="accent">{pct(power.percent, locale)}</b> : undefined}>
             {power.percent !== null && <Bar value={power.percent} tone={power.percent < 20 ? "danger" : undefined} />}
             <div className="row">
@@ -201,6 +207,8 @@ export default function Sensors() {
               </div>
             ) : null}
           </Card>
+            </>
+          )}
         </div>
       )}
 

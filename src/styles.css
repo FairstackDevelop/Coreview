@@ -677,3 +677,47 @@ tr.dim td:not(:first-child) { opacity: 0.5; }
 
 .driver-card { margin-bottom: 16px; border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
 .driver-card p { margin-bottom: 12px; font-size: 0.875rem; opacity: 0.9; }
+
+html[data-overlay], html[data-overlay] body, html[data-overlay] #root { background: transparent !important; overflow: hidden; }
+html[data-overlay] .ov-root { height: 100%; }
+.ov-box {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.28em;
+  min-width: 9em;
+  padding: 0.6em 0.8em;
+  border-radius: 0.8em;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f2f4fa;
+  font: 600 1em/1.2 var(--mono);
+  backdrop-filter: blur(6px);
+  user-select: none;
+}
+.ov-box[data-locked="false"] { outline: 2px dashed var(--accent); cursor: move; }
+.ov-box.horizontal { flex-direction: row; flex-wrap: nowrap; gap: 1em; white-space: nowrap; }
+.ov-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.9em; }
+.ov-box.horizontal .ov-row { justify-content: flex-start; gap: 0.4em; }
+.ov-row span { color: rgba(242, 244, 250, 0.62); font-weight: 500; font-size: 0.85em; }
+.ov-row b { font-variant-numeric: tabular-nums; }
+.ov-row.warn b { color: var(--warn); }
+.ov-row.danger b { color: var(--danger); }
+.ov-row .spark { width: 5em; height: 1.6em; }
+
+.history-controls { display: grid; gap: 14px; }
+.history-controls .inline-form { margin: 0; }
+.dates { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.8125rem; color: var(--muted); }
+.dates label { display: grid; gap: 4px; }
+.dates input {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) * 0.5);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  user-select: text;
+}
+.stat-table { display: grid; gap: 6px; margin-top: 12px; }
+.stat-line { display: grid; grid-template-columns: 10px 110px 1fr; align-items: center; gap: 10px; font-size: 0.8125rem; }
+.stat-line em { font-style: normal; }
+.stat-line small { color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; }

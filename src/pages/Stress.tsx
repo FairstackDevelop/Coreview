@@ -253,9 +253,11 @@ export default function Stress() {
                 <Chart data={samples} max={100} series={[{ key: "gpu", color: "var(--c2)", name: t("mon.gpu") }]} format={(v) => pct(v, locale)} height={130} />
               </Card>
             )}
-            <Card title={t("pow.system")}>
-              <Chart data={samples} series={[{ key: "power", color: "var(--c4)", name: t("pow.system") }]} format={(v) => `${v.toFixed(1)} W`} height={130} />
-            </Card>
+            {samples.some((s) => s.power !== null) && (
+              <Card title={t("pow.system")}>
+                <Chart data={samples} series={[{ key: "power", color: "var(--c4)", name: t("pow.system") }]} format={(v) => `${v.toFixed(1)} W`} height={130} />
+              </Card>
+            )}
           </div>
         </>
       )}

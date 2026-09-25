@@ -1,9 +1,14 @@
+#[cfg(windows)]
+mod cpuperf;
 mod details;
 mod extras;
+mod fps;
+mod history;
 mod hw;
 #[cfg(target_os = "macos")]
 mod ioreport;
 mod live;
+mod overlay;
 mod power;
 mod smc;
 mod startup;
@@ -33,8 +38,35 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
+                    if event.state() != ShortcutState::Pressed {
+                        return;
+                    }
+                    let mods = Modifiers::CONTROL | Modifiers::SHIFT;
+                    if shortcut.matches(mods, Code::F9) {
+                        overlay::toggle_visible(app);
+                    } else if shortcut.matches(mods, Code::F10) {
+                        overlay::toggle_lock(app);
+                    }
+                })
+                .build(),
+        )
+        .setup(|app| {
+            use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
+            let mods = Modifiers::CONTROL | Modifiers::SHIFT;
+            for code in [Code::F9, Code::F10] {
+                if let Err(e) = app.global_shortcut().register(Shortcut::new(Some(mods), code)) {
+                    log_line(&format!("shortcut error: {e}"));
+                }
+            }
+            Ok(())
+        })
         .manage(live::AppState::new())
         .manage(stress::StressState::new())
+        .manage(overlay::OverlayState::new())
         .invoke_handler(tauri::generate_handler![
             hw::hardware_info,
             live::live_stats,
@@ -51,6 +83,19 @@ pub fn run() {
             stress::stress_start,
             stress::stress_stop,
             stress::stress_status,
+            history::history_append,
+            history::history_query,
+            history::history_csv,
+            history::history_prune,
+            history::history_clear,
+            overlay::overlay_show,
+            overlay::overlay_hide,
+            overlay::overlay_lock,
+            overlay::overlay_resize,
+            overlay::overlay_set_custom,
+            fps::fps_enable,
+            fps::fps_status,
+            fps::fps_stats,
             details::detail_categories,
             details::detail_data,
             extras::connections,

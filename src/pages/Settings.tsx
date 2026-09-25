@@ -5,7 +5,8 @@ import { Card, Field, PageHead, Segmented, Slider, Toggle } from "../ui";
 const swatches = ["#7c8cff", "#22d3ee", "#34d399", "#a3e635", "#fbbf24", "#f97316", "#f43f5e", "#e879f9"];
 
 export default function Settings() {
-  const { settings: s, set, reset, t } = useSettings();
+  const { settings: s, set, reset, t, locale } = useSettings();
+  const dayUnit = new Intl.NumberFormat(locale, { style: "unit", unit: "day", unitDisplay: "long" }).format(2).replace(/[\d\s.,]+/g, "").trim();
   const isWindows = navigator.userAgent.includes("Windows");
 
   return (
@@ -110,6 +111,18 @@ export default function Settings() {
           </Field>
           <Field label={t("set.history")}>
             <Slider value={s.history} min={30} max={300} step={10} suffix={` ${t("set.points")}`} onChange={(history) => set({ history })} />
+          </Field>
+        </Card>
+
+        <Card title={t("nav.history")}>
+          <Field label={t("hi.rec")}>
+            <Toggle checked={s.historyOn} onChange={(historyOn) => set({ historyOn })} />
+          </Field>
+          <Field label={t("hi.every")}>
+            <Slider value={s.historyEvery} min={2} max={60} suffix={` ${t("set.seconds")}`} onChange={(historyEvery) => set({ historyEvery })} />
+          </Field>
+          <Field label={t("hi.days")}>
+            <Slider value={s.historyDays} min={1} max={30} suffix={` ${dayUnit}`} onChange={(historyDays) => set({ historyDays })} />
           </Field>
         </Card>
 

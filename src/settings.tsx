@@ -22,6 +22,9 @@ export interface Settings {
   alertOn: boolean;
   alertTemp: number;
   stressLimit: number;
+  historyOn: boolean;
+  historyEvery: number;
+  historyDays: number;
 }
 
 export const defaults: Settings = {
@@ -41,6 +44,9 @@ export const defaults: Settings = {
   alertOn: true,
   alertTemp: 90,
   stressLimit: 95,
+  historyOn: true,
+  historyEvery: 5,
+  historyDays: 7,
 };
 
 export const presets: Record<string, Partial<Settings>> = {
@@ -48,6 +54,8 @@ export const presets: Record<string, Partial<Settings>> = {
   midnight: { theme: "dark", accent: "#22d3ee", effect: "none", opacity: 92, blur: 0, radius: 12, glow: false },
   paper: { theme: "light", accent: "#f97316", effect: "none", opacity: 96, blur: 0, radius: 10, glow: false },
 };
+
+export const IS_OVERLAY = new URLSearchParams(location.search).has("overlay");
 
 const STORAGE_KEY = "coreview.settings";
 
@@ -102,7 +110,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [settings, systemDark]);
 
   useEffect(() => {
-    api.windowEffect(settings.effect).catch(() => {});
+    if (!IS_OVERLAY) api.windowEffect(settings.effect).catch(() => {});
   }, [settings.effect]);
 
   const set = useCallback((patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...patch })), []);
