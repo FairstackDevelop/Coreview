@@ -1,5 +1,8 @@
 #[cfg(windows)]
 mod cpuperf;
+use tauri::Manager;
+
+pub mod agent;
 mod details;
 mod extras;
 mod fps;
@@ -57,6 +60,8 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            app.manage(agent::AgentState::new(app.handle().clone()));
+            app.state::<agent::AgentState>().autostart();
             use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
             let mods = Modifiers::CONTROL | Modifiers::SHIFT;
             for code in [Code::F9, Code::F10] {
@@ -99,6 +104,12 @@ pub fn run() {
             fps::fps_enable,
             fps::fps_status,
             fps::fps_stats,
+            agent::agent_status,
+            agent::agent_set_enabled,
+            agent::agent_set_options,
+            agent::agent_new_pairing,
+            agent::agent_revoke,
+            agent::agent_set_device_control,
             details::detail_categories,
             details::detail_data,
             extras::connections,
@@ -117,11 +128,13 @@ pub fn run() {
 
     app.run(|handle, event| match event {
         tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::CloseRequested { .. }, .. } if label == "main" => {
+            handle.state::<agent::AgentState>().shutdown();
             winsensors::shutdown();
             fps::shutdown();
             handle.exit(0);
         }
         tauri::RunEvent::Exit => {
+            handle.state::<agent::AgentState>().shutdown();
             winsensors::shutdown();
             fps::shutdown();
         }

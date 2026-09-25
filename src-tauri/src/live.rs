@@ -9,6 +9,7 @@ pub struct Shared {
     disks: Mutex<Disks>,
     comps: Mutex<Components>,
     last: Mutex<Instant>,
+    cache: Mutex<Option<(Instant, LiveStats)>>,
     #[cfg(windows)]
     perf: Mutex<Option<crate::cpuperf::CpuPerf>>,
 }
@@ -37,13 +38,14 @@ impl Shared {
             disks: Mutex::new(Disks::new_with_refreshed_list()),
             comps: Mutex::new(Components::new_with_refreshed_list()),
             last: Mutex::new(Instant::now()),
+            cache: Mutex::new(None),
             #[cfg(windows)]
             perf: Mutex::new(crate::cpuperf::CpuPerf::new()),
         }
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Temp {
     label: String,
@@ -52,7 +54,7 @@ pub struct Temp {
     critical: Option<f32>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DiskUsageLive {
     mount: String,
@@ -60,7 +62,7 @@ pub struct DiskUsageLive {
     available: u64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveStats {
     timestamp: u64,
@@ -81,6 +83,17 @@ pub struct LiveStats {
 }
 
 fn collect_live(state: &Shared) -> LiveStats {
+    if let Some((at, cached)) = state.cache.lock().unwrap().as_ref() {
+        if at.elapsed().as_millis() < 700 {
+            return cached.clone();
+        }
+    }
+    let fresh = compute_live(state);
+    *state.cache.lock().unwrap() = Some((Instant::now(), fresh.clone()));
+    fresh
+}
+
+fn compute_live(state: &Shared) -> LiveStats {
     let elapsed = {
         let mut last = state.last.lock().unwrap();
         let e = last.elapsed().as_secs_f64().max(0.05);

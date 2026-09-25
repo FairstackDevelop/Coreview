@@ -105,6 +105,19 @@ export interface FpsStatus { supported: boolean; running: boolean; available: bo
 export type HistorySample = { t: number } & Record<string, number>;
 export interface HistoryData { points: HistorySample[]; marks: { t: number; mark: string }[] }
 
+export interface AgentDevice { id: string; name: string; created: number; lastSeen: number; control: boolean }
+export interface AgentStatus {
+  enabled: boolean;
+  running: boolean;
+  port: number;
+  allowControl: boolean;
+  fingerprint: string;
+  addresses: string[];
+  devices: AgentDevice[];
+  events: { t: number; text: string }[];
+}
+export interface PairingInfo { link: string; code: string; expiresIn: number }
+
 export interface ProcInfo { pid: number; name: string; cpu: number; memory: number; status: string; runTime: number; exe: string }
 export interface StartupItem {
   id: string;
@@ -151,6 +164,12 @@ export const api = {
   fpsEnable: (enabled: boolean) => invoke<FpsStatus>("fps_enable", { enabled }),
   fpsStatus: () => invoke<FpsStatus>("fps_status"),
   fpsStats: () => invoke<FpsStats | null>("fps_stats"),
+  agentStatus: () => invoke<AgentStatus>("agent_status"),
+  agentEnable: (enabled: boolean) => invoke<AgentStatus>("agent_set_enabled", { enabled }),
+  agentOptions: (port: number, allowControl: boolean) => invoke<AgentStatus>("agent_set_options", { port, allowControl }),
+  agentPairing: () => invoke<PairingInfo>("agent_new_pairing"),
+  agentRevoke: (id: string) => invoke<AgentStatus>("agent_revoke", { id }),
+  agentDeviceControl: (id: string, control: boolean) => invoke<AgentStatus>("agent_set_device_control", { id, control }),
   connections: () => invoke<Connection[]>("connections"),
   saveSnapshot: (name: string, data: HardwareInfo) => invoke<SnapshotMeta>("save_snapshot", { name, data: JSON.stringify(data) }),
   snapshots: () => invoke<SnapshotMeta[]>("list_snapshots"),

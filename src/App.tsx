@@ -5,6 +5,7 @@ import { api, type HardwareInfo } from "./api";
 import { LiveProvider, useLive } from "./live";
 import Details from "./pages/Details";
 import History from "./pages/History";
+import MobilePage from "./pages/MobilePage";
 import Monitor from "./pages/Monitor";
 import OverlayPage from "./pages/OverlayPage";
 import Network from "./pages/Network";
@@ -22,7 +23,7 @@ import type { Key } from "./i18n";
 import logo from "./assets/logo.svg";
 import { Icon } from "./ui";
 
-const pages = ["summary", "details", "monitor", "sensors", "history", "stress", "overlay", "storage", "network", "processes", "startup", "snapshots", "settings"] as const;
+const pages = ["summary", "details", "monitor", "sensors", "history", "stress", "overlay", "mobile", "storage", "network", "processes", "startup", "snapshots", "settings"] as const;
 type Page = (typeof pages)[number];
 
 function Shell() {
@@ -136,6 +137,7 @@ function Shell() {
               {page === "sensors" && <Sensors />}
               {page === "history" && <History />}
               {page === "overlay" && <OverlayPage />}
+              {page === "mobile" && <MobilePage />}
               {page === "stress" && <Stress />}
               {page === "storage" && hw && <Storage hw={hw} />}
               {page === "network" && hw && <Network hw={hw} />}
