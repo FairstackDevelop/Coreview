@@ -36,7 +36,7 @@ fn install_crash_log() {
 pub fn run() {
     install_crash_log();
     log_line(&format!("start {} {}", env!("CARGO_PKG_VERSION"), std::env::consts::OS));
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
@@ -109,6 +109,22 @@ pub fn run() {
             extras::save_text_file,
             extras::set_window_effect,
         ])
-        .run(tauri::generate_context!())
-        .unwrap_or_else(|e| log_line(&format!("ERROR: {e}")));
+        .build(tauri::generate_context!())
+        .unwrap_or_else(|e| {
+            log_line(&format!("ERROR: {e}"));
+            std::process::exit(1)
+        });
+
+    app.run(|handle, event| match event {
+        tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::CloseRequested { .. }, .. } if label == "main" => {
+            winsensors::shutdown();
+            fps::shutdown();
+            handle.exit(0);
+        }
+        tauri::RunEvent::Exit => {
+            winsensors::shutdown();
+            fps::shutdown();
+        }
+        _ => {}
+    });
 }

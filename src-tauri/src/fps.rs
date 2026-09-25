@@ -236,3 +236,15 @@ pub fn fps_stats() -> Option<FpsStats> {
         })
     })
 }
+
+pub fn shutdown() {
+    with(|s| {
+        s.generation += 1;
+        s.running = false;
+        if let Some(child) = s.child.take() {
+            if let Ok(mut c) = child.lock() {
+                let _ = c.kill();
+            }
+        }
+    });
+}

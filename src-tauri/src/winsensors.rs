@@ -7,7 +7,9 @@ use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::{Mutex, OnceLock};
+use std::process::Child;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 use tauri::Manager;
 
@@ -46,8 +48,11 @@ struct Snapshot {
 
 static SNAP: Mutex<Snapshot> = Mutex::new(Snapshot { sensors: Vec::new(), admin: false, error: String::new(), running: false, found: false });
 static STARTED: OnceLock<()> = OnceLock::new();
+static STOPPING: AtomicBool = AtomicBool::new(false);
+static RUNNING: Mutex<Option<Arc<Mutex<Child>>>> = Mutex::new(None);
 static NVIDIA: Mutex<Vec<GpuStats>> = Mutex::new(Vec::new());
 static ENGINE_LOAD: Mutex<Option<f64>> = Mutex::new(None);
+static PACKAGE_WATTS: Mutex<Option<f64>> = Mutex::new(None);
 
 #[derive(Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -98,6 +103,10 @@ fn run_once(exe: &Path) -> Result<(), String> {
     let mut child = cmd.spawn().map_err(|e| e.to_string())?;
     let _keep_open = child.stdin.take();
     let out = child.stdout.take().ok_or("no output from sensor helper")?;
+    let shared = Arc::new(Mutex::new(child));
+    if let Ok(mut slot) = RUNNING.lock() {
+        *slot = Some(shared.clone());
+    }
     update(|s| s.running = true);
     for line in BufReader::new(out).lines() {
         let Ok(line) = line else { break };
@@ -114,7 +123,9 @@ fn run_once(exe: &Path) -> Result<(), String> {
         }
     }
     update(|s| s.running = false);
-    let _ = child.wait();
+    if let Ok(mut c) = shared.lock() {
+        let _ = c.wait();
+    }
     Ok(())
 }
 
@@ -125,6 +136,9 @@ fn supervise(resource: Option<PathBuf>) {
     };
     update(|s| s.found = true);
     for _ in 0..8 {
+        if STOPPING.load(Ordering::SeqCst) {
+            return;
+        }
         if let Err(e) = run_once(&exe) {
             update(|s| s.error = e);
         }
@@ -222,10 +236,13 @@ pub fn to_power() -> WinPower {
     let mut out = WinPower::default();
     for s in &snap.sensors {
         if let (Some(v), "Power", "Cpu") = (s.value, s.st.as_str(), s.ht.as_str()) {
-            if s.name.contains("Package") {
-                out.cpu = out.cpu.or(Some(v));
+            if s.name.contains("Package") && v > 0.0 {
+                out.cpu = Some(out.cpu.map_or(v, |c: f64| c.max(v)));
             }
         }
+    }
+    if out.cpu.is_none() {
+        out.cpu = PACKAGE_WATTS.lock().ok().and_then(|w| *w);
     }
     if let Some(g) = gpus().first() {
         out.gpu = g.power;
@@ -324,7 +341,9 @@ fn read_nvidia(exe: &Path) -> Vec<GpuStats> {
 fn gpu_fallbacks() {
     let smi = nvidia_smi();
     #[cfg(windows)]
-    let mut engines = crate::gpuperf::GpuEngines::new();
+    let mut engines = crate::gpuperf::Wildcard::new(windows::core::w!("\\GPU Engine(*)\\Utilization Percentage"));
+    #[cfg(windows)]
+    let mut energy = crate::gpuperf::Wildcard::new(windows::core::w!("\\Energy Meter(*)\\Power"));
     loop {
         if let Some(exe) = &smi {
             let list = read_nvidia(exe);
@@ -334,8 +353,15 @@ fn gpu_fallbacks() {
         }
         #[cfg(windows)]
         if let Some(e) = engines.as_mut() {
-            let value = e.read();
+            let value = crate::gpuperf::gpu_load(&e.read());
             if let Ok(mut l) = ENGINE_LOAD.lock() {
+                *l = value;
+            }
+        }
+        #[cfg(windows)]
+        if let Some(e) = energy.as_mut() {
+            let value = crate::gpuperf::package_watts(&e.read());
+            if let Ok(mut l) = PACKAGE_WATTS.lock() {
                 *l = value;
             }
         }
@@ -438,4 +464,15 @@ pub fn raw_sensors() -> Vec<(String, Vec<(String, String)>)> {
         groups.entry(format!("{} ({})", s.hw, s.ht)).or_default().push((format!("{} · {}", s.st, s.name), format!("{v:.2}{unit}")));
     }
     groups.into_iter().collect()
+}
+
+pub fn shutdown() {
+    STOPPING.store(true, Ordering::SeqCst);
+    if let Ok(slot) = RUNNING.lock() {
+        if let Some(child) = slot.as_ref() {
+            if let Ok(mut c) = child.lock() {
+                let _ = c.kill();
+            }
+        }
+    }
 }

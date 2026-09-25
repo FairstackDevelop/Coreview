@@ -114,7 +114,7 @@ export default function Sensors() {
         ["pw.gpu", power.gpuWatts],
         ["pw.ane", power.aneWatts],
         ["pw.dram", power.dramWatts],
-      ] as [Key, number | null][]).filter((x): x is [Key, number] => x[1] !== null)
+      ] as [Key, number | null][]).filter((x): x is [Key, number] => x[1] !== null && (x[0] !== "pw.cpu" || x[1] > 0))
     : [];
   const partMax = Math.max(0.1, ...parts.map((x) => x[1]));
   const battW = power?.batteryWatts ?? null;
