@@ -4,8 +4,8 @@ Free code signing for the Windows builds of Fairstack Coreview is provided by [S
 
 ## Team roles
 
-- **Committers and reviewers:** the maintainers listed in the repository (GitHub organization *FairstackDevelop*).
-- **Approvers:** the repository owners. Every release must be approved manually before it is signed.
+- **Committers and reviewers:** [Ruslan Lendel](https://github.com/ruslanlendel)
+- **Approvers:** [Ruslan Lendel](https://github.com/ruslanlendel). Every release must be approved manually before it is signed.
 
 ## What is signed
 
